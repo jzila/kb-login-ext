@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Keybase Login Extension</title>
+    <style>
+      * {
+        outline: none;
+      }
+      body, input, button {
+        font-family: "Segoe UI", "Bitstream Vera Sans", "Lucida Grande", Tahoma, sans-serif;
+        font-size: 1.4rem;
+        font-size: 14px;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #365FB3;
+      }
+      .overview {
+        white-space: pre;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        max-width: 400px;
+        margin: 5px 5px;
+        float: left;
+        clear: left;
+      }
+      input, button {
+        height: 30px;
+        width: 400px;
+        margin: 5px 5px;
+        clear: left;
+        float: left;
+        padding: 5px;
+        border-radius: 2px;
+        border: 1px solid #88aaee;
+        box-sizing: border-box;
+        color: #365FB3;
+      }
+      input:focus, button:focus {
+        border: 2px solid #88aaee;
+        padding: 4px;
+      }
+      #status:before {
+        content: "Status: ";
+      }
+      #submit {
+        background-color: #bbccff;
+        margin-bottom: 15px;
+      }
+      #submit:active {
+        background-color: #88aaee;
+        color: #ffffff;
+      }
+      #submit[disabled] {
+        background-color: #D8E0F2;
+        color: #cccccc;
+      }
+    </style>
+
+    <script src="lib/jquery-2.1.3.min.js"></script>
+    <script src="lib/triplesec-3.0.14-min.js"></script>
+    <script src="lib/kbpgp-2.0.1-min.js"></script>
+    <script src="lib/bundle.js"></script>
+    <script src="popup.js"></script>
+  </head>
+  <body>
+    <div class="overview title">Sign with Keybase</div>
+    <div class="overview" id="status">No key</div>
+    <input type="text" id="kb-id" placeholder="Keybase Login"></input>
+    <input type="password" id="pkey-password" placeholder="Private Key Password"></input>
+    <button id="submit" type="button">Submit</button>
+  </body>
+</html>
+
