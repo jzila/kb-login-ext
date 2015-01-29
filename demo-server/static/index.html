@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Keybase Signing Login Demo</title>
+	<script type="text/javascript">
+		function generateUrl(url) {
+			if (url.indexOf('//') >= 0) {
+				return url;
+			} else if (url.indexOf('/') === 0) {
+				return window.location.origin + url;
+			} else {
+				if (window.location.href[window.location.href.length - 1] == "/") {
+					return window.location.href + url;
+				} else {
+					return window.location.href + "/" + url;
+				}
+			}
+		}
+
+		function generateKbSignatureBlob(siteId, url) {
+			var random_nums = new Uint32Array(4);
+			window.crypto.getRandomValues(random_nums);
+			var acc = "";
+			for (i=0; i<random_nums.length; i++) {
+				acc += ("00000000" + random_nums[i].toString(16)).slice(-8);
+			}
+			return {
+				siteId: siteId,
+				nonce: acc,
+				kb_post_url: generateUrl(url)
+			};
+		}
+
+		function createKbLoginElement(siteId, signaturePostUrl) {
+			var blob = generateKbSignatureBlob(siteId, signaturePostUrl);
+			var input_elem = document.createElement("input");
+			input_elem.setAttribute("type", "text");
+			input_elem.setAttribute("id", "kb-login-blob");
+			input_elem.setAttribute("style", "width: 1px !important; height: 1px !important; position:absolute !important; top:-100px !important; left: -100px !important;");
+			input_elem.value = JSON.stringify(blob);
+			document.body.insertBefore(input_elem, document.body.firstChild);
+		}
+
+		document.addEventListener("DOMContentLoaded", function() {
+			createKbLoginElement("kb-login-demo", "/api/kb_cert_verify/");
+		});
+	</script>
+  </head>
+  <body>
+  </body>
+</html>
+
