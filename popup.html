@@ -56,6 +56,23 @@
         background-color: #D8E0F2;
         color: #cccccc;
       }
+	  #kb-id.signed-in {
+		border-color: #66ee99;
+	    color: #55cc77;
+	  }
+	  #button-container {
+		position: relative;
+		float: left;
+		clear: left;
+	  }
+	  #button-spinner {
+		position: absolute;
+		left: 188px;
+		margin: 8px 5px;
+	  }
+	  #button-spinner.hidden {
+		display: none;
+	  }
     </style>
 
     <script src="lib/jquery-2.1.3.min.js"></script>
@@ -67,9 +84,66 @@
   <body>
     <div class="overview title">Sign with Keybase</div>
     <div class="overview" id="status">No key</div>
-    <input type="text" id="kb-id" placeholder="Keybase Login"></input>
-    <input type="password" id="pkey-password" placeholder="Private Key Password"></input>
-    <button id="submit" type="button">Submit</button>
+	<form action="#">
+		<input type="text" id="kb-id" placeholder="Keybase Login"></input>
+		<input type="password" id="pkey-password" placeholder="Private Key Password"></input>
+		<div id="button-container">
+			<button id="submit" type="submit">Submit</button>
+			<svg width='24px' height='24px' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" id="button-spinner">
+				<rect x="0" y="0" width="100" height="100" fill="none" class="bk"></rect>
+				<g transform="translate(50 50)">
+					<g transform="rotate(0) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(45) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.12s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.12s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(90) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.25s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.25s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(135) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.37s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.37s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(180) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.5s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.5s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(225) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.62s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.62s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(270) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.75s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.75s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+					<g transform="rotate(315) translate(34 0)">
+						<circle cx="0" cy="0" r="6" fill="#365fb3">
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.87s" dur="1s" repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.87s" dur="1s" repeatCount="indefinite"></animateTransform>
+						</circle>
+					</g>
+				</g>
+			</svg>
+		</div>
+	</form>
   </body>
 </html>
 
