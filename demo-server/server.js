@@ -3,7 +3,7 @@ var nodeStatic = require("node-static"),
 	journey = require("journey"),
 	kblib = require("./api/kblib.js"),
 	util = require("./lib/util.js"),
-	constants = require("./lib/constants.js");
+	constants = require("./constants.js");
 
 var port = process.env.PORT;
 

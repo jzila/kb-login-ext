@@ -5,13 +5,12 @@ var http = require("http"),
 	assert = require("assert"),
 	kbpgp = require("kbpgp"),
 	crypto = require("crypto"),
-	util = require("../lib/util.js"),
-	constants = require("../lib/constants.js");
+	util = require("../lib/util.js");
 
 var pkey_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usernames={0}&fields=basics,profile,public_keys";
 
 var validateBlob = function (blob) {
-	// TODO make this actually validate the nonce we sent
+	// TODO Issue #3 make this actually validate the nonce we sent
 	return blob.siteId && blob.kb_post_url && blob.nonce && blob.nonce.length >= 85;
 };
 
