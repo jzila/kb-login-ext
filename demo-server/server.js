@@ -11,9 +11,6 @@ var router = new journey.Router();
 var fileServer = new nodeStatic.Server("./static");
 
 router.map(function () {
-	this.get(/^\/api\/hello_world\/?$/).bind(function (req, resp) {
-		resp.send(200, { 'Content-Type': 'application/json' }, { message: "Hello World" });
-	});
 	this.get(/^\/api\/get_blob\/?$/).bind(function (req, resp) {
 		var cb = util.makeSendResponse(resp);
 		var host = req.headers.referer;
