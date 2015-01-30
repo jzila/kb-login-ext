@@ -1,4 +1,4 @@
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 	if (request.kb_blob) {
 		handleKbLoginData(request.kb_blob);
 		sendResponse({ack: true});
@@ -10,11 +10,10 @@ var salt_url = "https://keybase.io/_/api/1.0/getsalt.json?email_or_username={0}"
 var crypt = require('crypto');
 var kb_id = '';
 var keys = {
-    private_key: {
-        key_b64: null,
-        key_manager: null
-    },
-    public_key: ''
+	private_key: {
+		key_b64: null,
+		key_manager: null
+	}
 };
 
 function renderStatus(statusCode, statusText) {
@@ -35,38 +34,54 @@ function renderStatus(statusCode, statusText) {
 		$('#kb-id').removeClass('signed-in');
 	}
 	if (statusCode >= 0) {
+		if (keyExists()) {
+			if (keyEncrypted()) {
+				$("#kb-password").addClass("hidden");
+				$("#pkey-password").removeClass("hidden");
+				$("#submit").removeClass("hidden");
+			} else {
+				$("#kb-password").addClass("hidden");
+				$("#pkey-password").addClass("hidden");
+				$("#submit").addClass("hidden");
+			}
+		} else {
+			$("#kb-password").removeClass("hidden");
+			$("#pkey-password").addClass("hidden");
+			$("#submit").removeClass("hidden");
+		}
 		$('#submit').prop('disabled', false);
 		$('#button-spinner').attr("class", "hidden");
+		focusFirstEmpty();
 	} else {
 		$('#submit').prop('disabled', true);
 		$('#button-spinner').attr("class", "");
 	}
-    $('#status').text(statusText);
+	$('#status').text(statusText);
 	console.log("status: " + statusText);
 }
 
 function formatString(format) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    return format.replace(/{(\d+)}/g, function(match, number) { 
-        return typeof args[number] != 'undefined' ? args[number] : match;
-    });
+	var args = Array.prototype.slice.call(arguments, 1);
+	return format.replace(/{(\d+)}/g, function (match, number) {
+		return typeof args[number] != 'undefined' ? args[number] : match;
+	});
 }
 
 function decryptKey(pkey_passwd) {
-    var key_b64 = keys.private_key.key_b64;
-    kbpgp.KeyManager.import_from_p3skb({raw: key_b64}, function(err, km) {
-        if (km.is_p3skb_locked()) {
-            km.unlock_p3skb({passphrase: pkey_passwd}, function(err) {
-                if (!err) {
-                    keys.private_key.key_manager = km;
-                    renderStatus(-1);
+	var key_b64 = keys.private_key.key_b64;
+	kbpgp.KeyManager.import_from_p3skb({raw: key_b64}, function (err, km) {
+		if (km.is_p3skb_locked()) {
+			km.unlock_p3skb({passphrase: pkey_passwd}, function (err) {
+				if (!err) {
+					keys.private_key.key_manager = km;
+					renderStatus(-1);
 					chrome.tabs.executeScript({file: "content_signing_data.js"});
-                }
-            });
-        } else {
-            renderStatus(1, "Private key not locked");
-        }
-    });
+				}
+			});
+		} else {
+			renderStatus(1, "Private key not locked");
+		}
+	});
 }
 
 function handleKbLoginData(data) {
@@ -90,11 +105,10 @@ function validateBlob(blob) {
 }
 
 function signAndPostBlob(url, blobString) {
-	// TODO sign blob here
 	kbpgp.box({
 		msg: blobString,
 		sign_with: keys.private_key.key_manager
-	}, function(err, result_string) {
+	}, function (err, result_string) {
 		if (!err) {
 			$.ajax({
 				url: url,
@@ -103,10 +117,10 @@ function signAndPostBlob(url, blobString) {
 					blob: blobString,
 					signature: result_string
 				},
-				success: function(data) {
+				success: function (data) {
 					renderStatus(0, "Logged in as " + data.user.full_name);
 				},
-				error: function() {
+				error: function () {
 					renderStatus(1, "Unable to verify identity");
 				}
 			});
@@ -120,69 +134,124 @@ function resetForm() {
 		key_manager: null
 	};
 	kb_id = '';
-	renderStatus(1);
+	clearKeysFromStorage(function() { renderStatus(1); });
 }
 
-$(document).ready(function() {
-	renderStatus(1);
-    $('#submit').click(function() {
+function clearKeysFromStorage(cb) {
+	chrome.storage.local.remove(["kb-private-key", "kb-id"], cb);
+}
+
+function getKeyFromStorage() {
+	chrome.storage.local.get(["kb-private-key", "kb-id"], function(objects) {
+		if (objects["kb-private-key"] && objects["kb-id"]) {
+			keys.private_key.key_b64 = objects["kb-private-key"];
+			kb_id = objects["kb-id"];
+			$('#kb-id').val(kb_id);
+		}
+		renderStatus(1);
+	});
+}
+
+function saveKeyToStorage() {
+	chrome.storage.local.set({
+		"kb-private-key": keys.private_key.key_b64,
+		"kb-id": kb_id
+	}, function() {
+		renderStatus(1);
+	});
+}
+
+function processKbLogin() {
+	renderStatus(-1);
+	kb_id = $('#kb-id').val();
+	var kb_passwd_field = $('#kb-password');
+	var kb_passwd = kb_passwd_field.val();
+	kb_passwd_field.val('');
+
+	// TODO Issue #1 sanitize and validate text for both fields
+
+	$.getJSON(formatString(salt_url, kb_id), function (salt_data) {
+		var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
+		var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
+		var key = new triplesec.Buffer(kb_passwd, 'utf8');
+		var pwh_derived_key_bytes = 32;
+		var encryptor = new triplesec.Encryptor({
+			key: key,
+			version: 3
+		});
+		encryptor.resalt({
+			salt: salt,
+			extra_keymaterial: pwh_derived_key_bytes
+		}, function (err, km) {
+			if (!err) {
+				var pwh = km.extra.slice(0, pwh_derived_key_bytes);
+				var hmac = crypt.createHmac('sha512', pwh).update(login_session);
+				var digest = hmac.digest('hex');
+
+				$.ajax({
+					url: login_url,
+					type: "POST",
+					data: {
+						email_or_username: kb_id,
+						hmac_pwh: digest,
+						login_session: salt_data["login_session"]
+					},
+					success: function (data) {
+						if (data.status.name == "OK") {
+							keys.private_key.key_b64 = data.me.private_keys.primary.bundle;
+							saveKeyToStorage();
+						} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
+							renderStatus(1, "Invalid login or password");
+						} else {
+							renderStatus(1, "Unknown error occurred with login");
+						}
+					},
+					error: function (err) {
+						renderStatus(1, "Unable to login to " + login_url);
+					}
+				});
+			} else {
+				renderStatus(1, "Error occurred while encrypting password");
+			}
+		});
+	}).fail(function (err) {
+		renderStatus(1, "Failed to get salt");
+	});
+}
+
+function keyExists() {
+	return !!keys.private_key.key_b64;
+}
+
+function keyEncrypted() {
+	return keyExists() && !keys.private_key.key_manager;
+}
+
+function focusFirstEmpty() {
+	if (keyExists()) {
+		$("#pkey-password").focus();
+	} else if (kb_id) {
+		$("#kb-password").focus();
+	} else {
+		$("#kb-id").focus();
+	}
+}
+
+$(document).ready(function () {
+	getKeyFromStorage();
+	$('#submit').click(function () {
 		$(this).focus();
-        renderStatus(-1);
-        kb_id = $('#kb-id').val();
-        var pkey_passwd = $('#pkey-password').val();
-		$('#pkey-password').val('');
-
-        // TODO sanitize and validate text for both fields
-        
-        $.getJSON(formatString(salt_url, kb_id), function(salt_data) {
-            var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
-            var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
-            var key = new triplesec.Buffer(pkey_passwd, 'utf8');
-            var pwh_derived_key_bytes = 32;
-            var encryptor = new triplesec.Encryptor({
-                key: key,
-                version: 3
-            });
-			encryptor.resalt({
-                salt: salt,
-                extra_keymaterial: pwh_derived_key_bytes
-            }, function(err, km) {
-                if (!err) {
-                    var pwh = km.extra.slice(0, pwh_derived_key_bytes);
-                    var hmac = crypt.createHmac('sha512', pwh).update(login_session);
-                    var digest = hmac.digest('hex');
-
-                    $.ajax({
-                        url: login_url,
-                        type: "POST",
-                        data: {
-                            email_or_username: kb_id,
-                            hmac_pwh: digest,
-                            login_session: salt_data["login_session"]
-                        },
-                        success: function(data) {
-                            if (data.status.name == "OK") {
-                                keys.private_key.key_b64 = data.me.private_keys.primary.bundle;
-                                decryptKey(pkey_passwd);
-                            } else if (data.status.name == "BAD_LOGIN_PASSWORD") {
-                                renderStatus(1, "Invalid login or password");
-                            } else {
-								renderStatus(1, "Unknown error occurred with login");
-							}
-                        },
-                        error: function(err) {
-                            renderStatus(1, "Unable to login to " + login_url);
-                        }
-                    });
-                } else {
-                    renderStatus(1, "Error occurred while encrypting password");
-                }
-            });
-        }).fail(function(err) {
-            renderStatus(1, "Failed to get salt");
-        });
-    });
-	$('#kb-id').on('input', function() {
+		renderStatus(-1);
+		if (keyExists()) {
+			var pkey_password_field = $("#pkey-password");
+			decryptKey(pkey_password_field.val());
+			pkey_password_field.val("");
+		} else {
+			processKbLogin();
+		}
+	});
+	$('#kb-id').on('input', function () {
 		resetForm();
-	}).focus();
+	});
+	focusFirstEmpty();
 });

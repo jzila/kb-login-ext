@@ -1,149 +1,191 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Keybase Login Extension</title>
-    <style>
-      * {
-        outline: none;
-      }
-      body, input, button {
-        font-family: "Segoe UI", "Bitstream Vera Sans", "Lucida Grande", Tahoma, sans-serif;
-        font-size: 1.4rem;
-        font-size: 14px;
-      }
-      .title {
-        font-size: 16px;
-        font-weight: bold;
-        color: #365FB3;
-      }
-      .overview {
-        white-space: pre;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 400px;
-        margin: 5px 5px;
-        float: left;
-        clear: left;
-      }
-      input, button {
-        height: 30px;
-        width: 400px;
-        margin: 5px 5px;
-        clear: left;
-        float: left;
-        padding: 5px;
-        border-radius: 2px;
-        border: 1px solid #88aaee;
-        box-sizing: border-box;
-        color: #365FB3;
-      }
-      input:focus, button:focus {
-        border: 2px solid #88aaee;
-        padding: 4px;
-      }
-      #status:before {
-        content: "Status: ";
-      }
-      #submit {
-        background-color: #bbccff;
-        margin-bottom: 15px;
-      }
-      #submit:active {
-        background-color: #88aaee;
-        color: #ffffff;
-      }
-      #submit[disabled] {
-        background-color: #D8E0F2;
-        color: #cccccc;
-      }
-	  #kb-id.signed-in {
-		border-color: #44bb66;
-	    color: #44bb66;
-	  }
-	  #button-container {
-		position: relative;
-		float: left;
-		clear: left;
-	  }
-	  #button-spinner {
-		position: absolute;
-		left: 188px;
-		margin: 8px 5px;
-	  }
-	  #button-spinner.hidden {
-		display: none;
-	  }
-    </style>
+<head>
+	<title>Keybase Login Extension</title>
+	<style>
+		* {
+			outline: none;
+		}
 
-    <script src="lib/jquery-2.1.3.min.js"></script>
-    <script src="lib/triplesec.js"></script>
-    <script src="lib/kbpgp.js"></script>
-    <script src="lib/bundle.js"></script>
-    <script src="popup.js"></script>
-  </head>
-  <body>
-    <div class="overview title">Sign with Keybase</div>
-    <div class="overview" id="status">No key</div>
-	<form action="#">
-		<input type="text" id="kb-id" placeholder="Keybase Login"></input>
-		<input type="password" id="pkey-password" placeholder="Private Key Password"></input>
+		body, input, button {
+			font-family: "Segoe UI", "Bitstream Vera Sans", "Lucida Grande", Tahoma, sans-serif;
+			font-size: 1.4rem;
+			font-size: 14px;
+		}
+
+		.title {
+			font-size: 16px;
+			font-weight: bold;
+			color: #365FB3;
+		}
+
+		.overview {
+			white-space: pre;
+			text-overflow: ellipsis;
+			overflow: hidden;
+			max-width: 400px;
+			margin: 5px 5px;
+			float: left;
+			clear: left;
+		}
+
+		input, button {
+			height: 30px;
+			width: 400px;
+			margin: 5px 5px;
+			clear: left;
+			float: left;
+			padding: 5px;
+			border-radius: 2px;
+			border: 1px solid #88aaee;
+			box-sizing: border-box;
+			color: #365FB3;
+		}
+
+		input:focus, button:focus {
+			border: 2px solid #88aaee;
+			padding: 4px;
+		}
+
+		#status:before {
+			content: "Status: ";
+		}
+
+		#submit {
+			background-color: #bbccff;
+		}
+
+		#form-container {
+			margin-bottom: 10px;
+		}
+
+		.clear {
+			clear: both;
+		}
+
+		#submit:active {
+			background-color: #88aaee;
+			color: #ffffff;
+		}
+
+		#submit[disabled] {
+			background-color: #D8E0F2;
+			color: #cccccc;
+		}
+
+		#kb-id.signed-in {
+			border-color: #44bb66;
+			color: #44bb66;
+		}
+
+		#button-container {
+			position: relative;
+			float: left;
+			clear: left;
+		}
+
+		#button-spinner {
+			position: absolute;
+			left: 188px;
+			margin: 8px 5px;
+		}
+
+		.hidden {
+			display: none !important;
+		}
+	</style>
+
+	<script src="lib/jquery-2.1.3.min.js"></script>
+	<script src="lib/triplesec.js"></script>
+	<script src="lib/kbpgp.js"></script>
+	<script src="lib/bundle.js"></script>
+	<script src="popup.js"></script>
+</head>
+<body>
+<div class="overview title">Sign with Keybase</div>
+<div class="overview" id="status">No key</div>
+<form action="#">
+	<div id="form-container">
+		<input type="text" id="kb-id" placeholder="Keybase Username"></input>
+		<input type="password" id="kb-password" placeholder="Keybase Passphrase"></input>
+		<input type="password" id="pkey-password" class="hidden" placeholder="Private Key Passphrase"></input>
+
 		<div id="button-container">
 			<button id="submit" type="submit">Submit</button>
-			<svg width='24px' height='24px' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" id="button-spinner">
+			<svg width='24px' height='24px' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+				 preserveAspectRatio="xMidYMid" id="button-spinner">
 				<rect x="0" y="0" width="100" height="100" fill="none" class="bk"></rect>
 				<g transform="translate(50 50)">
 					<g transform="rotate(0) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0s" dur="1s"
+											  repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(45) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.12s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.12s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.12s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.12s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(90) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.25s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.25s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.25s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.25s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(135) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.37s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.37s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.37s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.37s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(180) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.5s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.5s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.5s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.5s" dur="1s"
+											  repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(225) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.62s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.62s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.62s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.62s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(270) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.75s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.75s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.75s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.75s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 					<g transform="rotate(315) translate(34 0)">
 						<circle cx="0" cy="0" r="6" fill="#365fb3">
-							<animate attributeName="opacity" from="1" to="0.1" begin="0.87s" dur="1s" repeatCount="indefinite"></animate>
-							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.87s" dur="1s" repeatCount="indefinite"></animateTransform>
+							<animate attributeName="opacity" from="1" to="0.1" begin="0.87s" dur="1s"
+									 repeatCount="indefinite"></animate>
+							<animateTransform attributeName="transform" type="scale" from="1.6" to="1" begin="0.87s"
+											  dur="1s" repeatCount="indefinite"></animateTransform>
 						</circle>
 					</g>
 				</g>
 			</svg>
 		</div>
-	</form>
-  </body>
+		<div class="clear"></div>
+	</div>
+</form>
+</body>
 </html>
 
