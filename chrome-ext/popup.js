@@ -70,16 +70,22 @@ function formatString(format) {
 function decryptKey(pkey_passwd) {
 	var key_b64 = keys.private_key.key_b64;
 	kbpgp.KeyManager.import_from_p3skb({raw: key_b64}, function (err, km) {
-		if (km.is_p3skb_locked()) {
-			km.unlock_p3skb({passphrase: pkey_passwd}, function (err) {
-				if (!err) {
-					keys.private_key.key_manager = km;
-					renderStatus(-1);
-					chrome.tabs.executeScript({file: "content_signing_data.js"});
-				}
-			});
+		if (!err) {
+			if (km.is_p3skb_locked()) {
+				km.unlock_p3skb({passphrase: pkey_passwd}, function (err) {
+					if (!err) {
+						keys.private_key.key_manager = km;
+						renderStatus(-1);
+						chrome.tabs.executeScript({file: "content_signing_data.js"});
+					} else {
+						renderStatus(1, "Error decrypting private key");
+					}
+				});
+			} else {
+				renderStatus(1, "Private key not locked");
+			}
 		} else {
-			renderStatus(1, "Private key not locked");
+			renderStatus(1, "Error importing private key");
 		}
 	});
 }
@@ -106,26 +112,26 @@ function validateBlob(blob) {
 
 function signAndPostBlob(url, blobString) {
 	kbpgp.box({
-		msg: blobString,
-		sign_with: keys.private_key.key_manager
-	}, function (err, result_string) {
-		if (!err) {
-			$.ajax({
-				url: url,
-				type: "POST",
-				data: {
-					blob: blobString,
-					signature: result_string
-				},
-				success: function (data) {
-					renderStatus(0, "Logged in as " + data.user.full_name);
-				},
-				error: function () {
-					renderStatus(1, "Unable to verify identity");
-				}
-			});
-		}
-	});
+	msg: blobString,
+	sign_with: keys.private_key.key_manager
+}, function (err, result_string) {
+	if (!err) {
+		$.ajax({
+			url: url,
+			type: "POST",
+			data: {
+				blob: blobString,
+				signature: result_string
+			},
+			success: function (data) {
+				renderStatus(0, "Logged in as " + data.user.full_name);
+			},
+			error: function () {
+				renderStatus(1, "Unable to verify identity");
+			}
+		});
+	}
+});
 }
 
 function resetForm() {

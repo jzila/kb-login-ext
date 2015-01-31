@@ -33,6 +33,13 @@ express.post(/^\/api\/kb_cert_verify\/?$/, function (req, resp) {
 	kblib.kbCertVerify(req.body, util.makeSendResponse(resp));
 });
 
+io.on('connection', function(socket){
+	console.log('a user connected');
+	socket.on('disconnect', function(){
+		console.log('user disconnected');
+	});
+});
+
 httpServer.listen(port, function() {
 	console.log("listening on " + port);
 });
