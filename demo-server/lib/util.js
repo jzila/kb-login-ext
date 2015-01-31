@@ -9,14 +9,6 @@ exports.formatString = function (format) {
 
 exports.makeSendResponse = function (resp) {
 	return function (code, stringOrObj) {
-		if (code == 200) {
-			var options = {};
-			if (stringOrObj !== null && typeof stringOrObj === 'object') {
-				options["Content-Type"] = "application/json";
-			}
-			resp.send(200, options, stringOrObj);
-		} else {
-			resp.send(code, stringOrObj);
-		}
+		resp.status(code).send(stringOrObj);
 	}
 };
