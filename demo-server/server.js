@@ -1,6 +1,6 @@
 var http = require("http"),
 	path = require("path"),
-	express = require('express')(),
+	app = require('express')(),
 	bodyParser = require('body-parser'),
 	multer = require('multer'),
 	kblib = require("./api/kblib.js"),
@@ -9,28 +9,58 @@ var http = require("http"),
 
 var port = process.env.PORT;
 
-var httpServer = http.Server(express);
+// In-memory session handling
+// TODO Issue #7 move out to something like Redis
+var sessions = {};
+var setSessionUser = function(token, user) {
+	sessions[token] = user;
+};
+var getSessionUser = function(token) {
+	return sessions[token];
+};
+
+var httpServer = http.Server(app);
 var io = require('socket.io')(httpServer);
 
-express.use(bodyParser.json());
-express.use(bodyParser.urlencoded({ extended: true }));
-express.use(multer());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(multer());
 
-express.get(/^\/?$/, function(req, resp) {
+app.get(/^\/?$/, function(req, resp) {
 	resp.sendFile(path.join(__dirname, "static/index.html"));
 });
 
-express.get(/^\/api\/get_blob\/?$/, function (req, resp) {
+app.get(/^\/api\/get_blob\/?$/, function (req, resp) {
 	var host = req.headers.referer;
 	// Wipe the last slash if there is one
 	if (host.lastIndexOf('/') == host.length - 1) {
 		host = host.slice(0, host.length - 1);
 	}
-	kblib.getBlob(constants.SITE_ID, host + constants.API_KB_VERIFY, util.makeSendResponse(resp));
+
+	kblib.getBlob(
+		constants.SITE_ID,
+		host + constants.API_KB_VERIFY,
+		util.makeSendResponse(resp, function(blob) { setSessionUser(blob.token, {}); })
+	);
 });
 
-express.post(/^\/api\/kb_cert_verify\/?$/, function (req, resp) {
-	kblib.kbCertVerify(req.body, util.makeSendResponse(resp));
+app.post(/^\/api\/kb_cert_verify\/?$/, function (req, resp) {
+	var errResponseCb = util.makeSendResponse(resp);
+	if (!req.body.blob || !req.body.signature) {
+		console.log("Signature data not valid");
+		return errResponseCb(400, "Invalid signature data");
+	}
+	var signature = req.body.signature;
+	var blob = JSON.parse(req.body.blob);
+	if (blob.token && getSessionUser(blob.token)) {
+		kblib.kbCertVerify(
+			blob,
+			signature,
+			util.makeSendResponse(resp, function(obj) { setSessionUser(obj.user.token, obj.user); })
+		);
+	} else {
+		errResponseCb(400, "Unknown blob identifier");
+	}
 });
 
 io.on('connection', function(socket){

@@ -107,31 +107,40 @@ function handleKbLoginData(data) {
 }
 
 function validateBlob(blob) {
-	return blob.siteId && blob.kb_post_url && blob.nonce && blob.nonce.length >= 32;
+	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 32;
 }
 
 function signAndPostBlob(url, blobString) {
 	kbpgp.box({
-	msg: blobString,
-	sign_with: keys.private_key.key_manager
-}, function (err, result_string) {
-	if (!err) {
-		$.ajax({
-			url: url,
-			type: "POST",
-			data: {
-				blob: blobString,
-				signature: result_string
-			},
-			success: function (data) {
-				renderStatus(0, "Logged in as " + data.user.full_name);
-			},
-			error: function () {
-				renderStatus(1, "Unable to verify identity");
-			}
+		msg: blobString,
+		sign_with: keys.private_key.key_manager
+	}, function (err, result_string) {
+		if (!err) {
+			$.ajax({
+				url: url,
+				type: "POST",
+				data: {
+					blob: blobString,
+					signature: result_string
+				},
+				success: function (data) {
+					sendUserMessage(data.user);
+					renderStatus(0, "Logged in as " + data.user.full_name);
+				},
+				error: function () {
+					renderStatus(1, "Unable to verify identity");
+				}
+			});
+		}
+	});
+}
+
+function sendUserMessage(user) {
+	chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+		chrome.tabs.sendMessage(tabs[0].id, user, function(response) {
+			console.log(response.message);
 		});
-	}
-});
+	});
 }
 
 function resetForm() {

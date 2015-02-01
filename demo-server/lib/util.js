@@ -7,8 +7,11 @@ exports.formatString = function (format) {
 	});
 };
 
-exports.makeSendResponse = function (resp) {
+exports.makeSendResponse = function (resp, successCb) {
 	return function (code, stringOrObj) {
 		resp.status(code).send(stringOrObj);
+		if (code == 200 && successCb) {
+			successCb(stringOrObj);
+		}
 	}
 };

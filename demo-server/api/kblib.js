@@ -10,8 +10,8 @@ var http = require("http"),
 var pkey_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usernames={0}&fields=basics,profile,public_keys";
 
 var validateBlob = function (blob) {
-	// TODO Issue #3 make this actually validate the nonce we sent
-	return blob.siteId && blob.kb_post_url && blob.nonce && blob.nonce.length >= 85;
+	// TODO Issue #3 make this actually validate the token we sent
+	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85;
 };
 
 var makeKeyManagerCallback = function (blob, signature, user, cb) {
@@ -21,18 +21,20 @@ var makeKeyManagerCallback = function (blob, signature, user, cb) {
 			ring.add_key_manager(km);
 			kbpgp.unbox({keyfetch: ring, armored: signature }, function (err, literals) {
 				if (!err) {
-					var asString = literals[0].toString();
-					var asObject = JSON.parse(asString);
+					var decryptedSignature = literals[0].toString();
+					var blobFromSignature = JSON.parse(decryptedSignature);
 					try {
-						assert.deepEqual(asObject, blob);
+						assert.deepEqual(blobFromSignature, blob);
+						var userResponse = {
+							kb_username: user.basics.username,
+							kb_uid: user.id,
+							full_name: user.profile.full_name,
+							location: user.profile.location,
+							token: blob.token
+						};
 						cb(200, {
 							status: {code: 0, name: "OK"},
-							user: {
-								kb_username: user.basics.username,
-								kb_uid: user.id,
-								full_name: user.profile.full_name,
-								location: user.profile.location
-							}
+							user: userResponse
 						});
 					} catch (Error) {
 						cb(400, "Mismatched blob and signature");
@@ -47,14 +49,7 @@ var makeKeyManagerCallback = function (blob, signature, user, cb) {
 	};
 };
 
-exports.kbCertVerify = function (data, cb) {
-	if (!data.blob || !data.signature) {
-		console.log("Signature data not valid");
-		return cb(400, "Invalid signature data");
-	}
-	var signature = data.signature;
-	var blob = JSON.parse(data.blob);
-
+exports.kbCertVerify = function (blob, signature, cb) {
 	if (!validateBlob(blob)) {
 		console.log("Signature blob not valid");
 		return cb(400, "Invalid invalid signature blob");
@@ -74,7 +69,7 @@ exports.kbCertVerify = function (data, cb) {
 			var publicData = JSON.parse(body);
 			if (publicData &&
 				publicData.status &&
-				publicData.status.name == "OK" &&
+				publicData.status.name === "OK" &&
 				publicData.them &&
 				publicData.them.length &&
 				publicData.them[0].public_keys &&
@@ -95,9 +90,10 @@ exports.kbCertVerify = function (data, cb) {
 
 exports.getBlob = function (siteId, verify_url, cb) {
 	var random = crypto.randomBytes(64).toString('base64');
-	cb(200, {
+	var blob = {
 		siteId: siteId,
-		nonce: random,
+		token: random,
 		kb_post_url: verify_url
-	});
+	};
+	cb(200, blob);
 };
