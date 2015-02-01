@@ -12,8 +12,9 @@ var port = process.env.PORT;
 // In-memory session handling
 // TODO Issue #7 move out to something like Redis
 var sessions = {};
-var userTokens = {};
 var setSessionUser = function(token, user) {
+	// TODO build some kind of session expiry here
+	/*
 	if (user && user.kb_uid) {
 		if (userTokens[user.kb_uid]) {
 			var oldUserToken = userTokens[user.kb_uid];
@@ -23,6 +24,7 @@ var setSessionUser = function(token, user) {
 		}
 		userTokens[user.kb_uid] = token;
 	}
+	*/
 	sessions[token] = user;
 };
 var getSessionUser = function(token) {
@@ -83,7 +85,11 @@ io.on('connection', function(socket){
 			errHandler("Unrecognized user");
 		} else {
 			var user = sessions[obj.token];
-			io.emit("chat_message", {user: user.kb_username, message: obj.message});
+			var msg = obj.message;
+			if (msg.length > 1024) {
+				msg = msg.substr(0, 1010) + "...[truncated]";
+			}
+			io.emit("chat_message", {user: user.kb_username, message: msg});
 		}
 	});
 });

@@ -48,7 +48,7 @@
 				}
 			});
 
-			$("form").submit(function() {
+			$("#submit").click(function() {
 				var msg = $("#message");
 				socket.emit("chat_message", {
 					message: msg.val(),
@@ -142,16 +142,18 @@
 
 		#messages li {
 			padding: 5px 10px;
+			max-width: 100%;
+			overflow-wrap: break-word;
 		}
 
 		#messages li:nth-child(odd) {
-			background: #eee;
+			background-color: #f2f3ff;
 		}
 	</style>
 </head>
 <body>
 	<ul id="messages"></ul>
-	<form action="#">
+	<form>
 		<div class="entry-container hidden" id="name-container">
 			<span id="name" />
 		</div>
