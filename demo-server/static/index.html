@@ -5,33 +5,57 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
 	<script src="https://cdn.socket.io/socket.io-1.3.2.js"></script>
 	<script type="text/javascript">
-		var socket;
+		var socket, user;
 		function createKbElements(blob) {
 			var input_string = "<input type=\"text\" style=\"width: 1px !important; height: 1px !important; position:absolute !important; top:-100px !important; left: -100px !important;\" />";
 			$(input_string).attr("id", "kb-login-blob").prependTo($("body")).val(JSON.stringify(blob));
 			$(input_string).attr("id", "kb-user-blob").prependTo($("body"));
 		}
 
+		function userChangeHandler() {
+			var val;
+
+			if (Object.getPrototypeOf(this) === HTMLInputElement.prototype && (val=$(this).val())) {
+				user = JSON.parse(val);
+				$("#name").text(user.full_name);
+				$("#name-container").removeClass("hidden");
+				$("#message,#submit").prop("disabled", false);
+			} else {
+				$("#name").text("");
+				$("#name-container").addClass("hidden");
+				$("#message,#submit").prop("disabled", true);
+			}
+		}
+
 		$(document).ready(function() {
+			socket = io();
+
+			socket.on("chat_message", function(obj) {
+				var user = obj.user;
+				var message = obj.message;
+				$('#messages').append($('<li>').text(user + ": " + message));
+				window.scrollTo(0, document.body.scrollHeight);
+			});
+
+			userChangeHandler();
 			$.ajax({
 				url: "/api/get_blob/",
 				type: "GET",
 				success: function (blob) {
 					createKbElements(blob);
 
-					$("#kb-user-blob").change(function() {
-						var val = $(this).val();
-
-						if (val) {
-							var user = JSON.parse(val);
-							$("#name").text(user.full_name);
-							$("#name-container").removeClass("hidden");
-						}
-					})
+					$("#kb-user-blob").change(userChangeHandler);
 				}
 			});
 
-			socket = io();
+			$("form").submit(function() {
+				var msg = $("#message");
+				socket.emit("chat_message", {
+					message: msg.val(),
+					token: user.token
+				});
+				msg.val("");
+			});
 		});
 	</script>
 	<style>
@@ -101,13 +125,18 @@
 			color: #ffffff;
 		}
 
+		button[disabled] {
+			background-color: #D8E0F2;
+			color: #cccccc;
+		}
+
 		.hidden {
 			display: none !important;
 		}
 
 		#messages {
 			list-style-type: none;
-			margin: 0;
+			margin: 0 0 40px 0;
 			padding: 0;
 		}
 
@@ -127,10 +156,10 @@
 			<span id="name" />
 		</div>
 		<div class="entry-container" id="input-container">
-			<input id="m" autocomplete="off" />
+			<input id="message" autocomplete="off" />
 		</div>
 		<div class="entry-container" id="button-container">
-			<button>Send</button>
+			<button id="submit">Send</button>
 		</div>
 	</form>
 </body>

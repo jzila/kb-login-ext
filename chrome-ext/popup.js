@@ -68,6 +68,7 @@ function formatString(format) {
 }
 
 function decryptKey(pkey_passwd) {
+	renderStatus(-1, "Decrypting private key...")
 	var key_b64 = keys.private_key.key_b64;
 	kbpgp.KeyManager.import_from_p3skb({raw: key_b64}, function (err, km) {
 		if (!err) {
@@ -75,7 +76,7 @@ function decryptKey(pkey_passwd) {
 				km.unlock_p3skb({passphrase: pkey_passwd}, function (err) {
 					if (!err) {
 						keys.private_key.key_manager = km;
-						renderStatus(-1);
+						renderStatus(-1, "Requesting message to sign...");
 						chrome.tabs.executeScript({file: "content_signing_data.js"});
 					} else {
 						renderStatus(1, "Error decrypting private key");
@@ -93,6 +94,7 @@ function decryptKey(pkey_passwd) {
 function handleKbLoginData(data) {
 	if (data) {
 		try {
+			renderStatus(-1, "Signing server data...");
 			blob = JSON.parse(data);
 			if (validateBlob(blob)) {
 				blob.email_or_username = kb_id;
@@ -103,6 +105,8 @@ function handleKbLoginData(data) {
 		} catch (SyntaxError) {
 			renderStatus(1, "Unable to parse JSON from server");
 		}
+	} else {
+		renderStatus(1, "No signing data received from server");
 	}
 }
 
@@ -177,7 +181,7 @@ function saveKeyToStorage() {
 }
 
 function processKbLogin() {
-	renderStatus(-1);
+	renderStatus(-1, "Requesting salt from Keybase...");
 	kb_id = $('#kb-id').val();
 	var kb_passwd_field = $('#kb-password');
 	var kb_passwd = kb_passwd_field.val();
@@ -186,6 +190,7 @@ function processKbLogin() {
 	// TODO Issue #1 sanitize and validate text for both fields
 
 	$.getJSON(formatString(salt_url, kb_id), function (salt_data) {
+		renderStatus(-1, "Salting and encrypting passphrase...");
 		var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
 		var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
 		var key = new triplesec.Buffer(kb_passwd, 'utf8');
@@ -199,6 +204,7 @@ function processKbLogin() {
 			extra_keymaterial: pwh_derived_key_bytes
 		}, function (err, km) {
 			if (!err) {
+				renderStatus(-1, "Hashing encrypted passphrase...");
 				var pwh = km.extra.slice(0, pwh_derived_key_bytes);
 				var hmac = crypt.createHmac('sha512', pwh).update(login_session);
 				var digest = hmac.digest('hex');
