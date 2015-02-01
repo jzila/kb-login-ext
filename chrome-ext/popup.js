@@ -11,14 +11,14 @@ var crypt = require('crypto');
 var kb_id = '';
 var keys = {
 	private_key: {
-		key_b64: null,
+		key_encrypted: null,
 		key_manager: null
 	}
 };
 
 function renderStatus(statusCode, statusText) {
 	if (!statusText) {
-		if (keys.private_key.key_b64) {
+		if (keys.private_key.key_encrypted) {
 			if (keys.private_key.key_manager) {
 				statusText = "Private key loaded";
 			} else {
@@ -67,26 +67,58 @@ function formatString(format) {
 	});
 }
 
-function decryptKey(pkey_passwd) {
-	renderStatus(-1, "Decrypting private key...")
-	var key_b64 = keys.private_key.key_b64;
-	kbpgp.KeyManager.import_from_p3skb({raw: key_b64}, function (err, km) {
-		if (!err) {
-			if (km.is_p3skb_locked()) {
-				km.unlock_p3skb({passphrase: pkey_passwd}, function (err) {
-					if (!err) {
-						keys.private_key.key_manager = km;
-						renderStatus(-1, "Requesting message to sign...");
-						chrome.tabs.executeScript({file: "content_signing_data.js"});
-					} else {
-						renderStatus(1, "Error decrypting private key");
-					}
-				});
+var KeyManager = kbpgp.KeyManager;
+
+KeyManager.prototype.has_private = function() {
+	return this.has_pgp_private() || this.has_p3skb_private();
+};
+
+KeyManager.prototype.is_locked = function() {
+	return this.is_pgp_locked() || this.is_p3skb_locked();
+};
+
+KeyManager.prototype.unlock = function(params, cb) {
+	if (this.is_pgp_locked()) {
+		return this.unlock_pgp(params, cb);
+	} else if (this.is_p3skb_locked()) {
+		return this.unlock_p3skb(params, cb);
+	} else {
+		cb(true);
+	}
+};
+
+function handleKeyUnlock(km, pkey_passwd) {
+	if (!km.has_private()) {
+		renderStatus(1, "No private key supplied");
+	} else if (km.is_locked()) {
+		km.unlock({passphrase: pkey_passwd}, function (err) {
+			if (!err) {
+				keys.private_key.key_manager = km;
+				renderStatus(-1, "Requesting message to sign...");
+				chrome.tabs.executeScript({file: "content_signing_data.js"});
 			} else {
-				renderStatus(1, "Private key not encrypted");
+				renderStatus(1, "Error decrypting private key");
 			}
+		});
+	} else {
+		renderStatus(1, "Private key not encrypted");
+	}
+}
+
+function decryptKey(pkey_passwd) {
+	renderStatus(-1, "Decrypting private key...");
+	var key_encrypted = keys.private_key.key_encrypted;
+	KeyManager.import_from_p3skb({armored: key_encrypted}, function (err, km) {
+		if (!err) {
+			handleKeyUnlock(km, pkey_passwd);
 		} else {
-			renderStatus(1, "Error importing private key");
+			kbpgp.KeyManager.import_from_armored_pgp({armored: key_encrypted}, function(err, km) {
+				if (!err) {
+					handleKeyUnlock(km, pkey_passwd);
+				} else {
+					renderStatus(1, "Error importing private key");
+				}
+			});
 		}
 	});
 }
@@ -163,7 +195,7 @@ function clearKeysFromStorage(cb) {
 function getKeyFromStorage() {
 	chrome.storage.local.get(["kb-private-key", "kb-id"], function(objects) {
 		if (objects["kb-private-key"] && objects["kb-id"]) {
-			keys.private_key.key_b64 = objects["kb-private-key"];
+			keys.private_key.key_encrypted = objects["kb-private-key"];
 			kb_id = objects["kb-id"];
 			$('#kb-id').val(kb_id);
 		}
@@ -173,7 +205,7 @@ function getKeyFromStorage() {
 
 function saveKeyToStorage() {
 	chrome.storage.local.set({
-		"kb-private-key": keys.private_key.key_b64,
+		"kb-private-key": keys.private_key.key_encrypted,
 		"kb-id": kb_id
 	}, function() {
 		renderStatus(1);
@@ -219,7 +251,7 @@ function processKbLogin() {
 					},
 					success: function (data) {
 						if (data.status.name == "OK") {
-							keys.private_key.key_b64 = data.me.private_keys.primary.bundle;
+							keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
 							saveKeyToStorage();
 						} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
 							renderStatus(1, "Invalid login or password");
@@ -241,7 +273,7 @@ function processKbLogin() {
 }
 
 function keyExists() {
-	return !!keys.private_key.key_b64;
+	return !!keys.private_key.key_encrypted;
 }
 
 function keyEncrypted() {
