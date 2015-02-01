@@ -36,6 +36,10 @@
 				$('#messages').append($('<li>').text(user + ": " + message));
 				window.scrollTo(0, document.body.scrollHeight);
 			});
+			socket.on("chat_error", function(err) {
+				$('#messages').append($("<li class=\"error\">").text(err));
+				window.scrollTo(0, document.body.scrollHeight);
+			});
 
 			userChangeHandler();
 			$.ajax({
@@ -48,13 +52,14 @@
 				}
 			});
 
-			$("#submit").click(function() {
+			$("form").submit(function() {
 				var msg = $("#message");
 				socket.emit("chat_message", {
 					message: msg.val(),
 					token: user.token
 				});
 				msg.val("");
+				return false;
 			});
 		});
 	</script>
@@ -144,6 +149,14 @@
 			padding: 5px 10px;
 			max-width: 100%;
 			overflow-wrap: break-word;
+		}
+
+		#messages li.error {
+			color: #930300;
+		}
+
+		#messages li.error:before {
+			content: "Error from server: ";
 		}
 	</style>
 </head>

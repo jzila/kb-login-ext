@@ -1,1 +1,1 @@
-web: node demo-server/server.js
+web: npm start
