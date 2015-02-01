@@ -83,7 +83,7 @@ function decryptKey(pkey_passwd) {
 					}
 				});
 			} else {
-				renderStatus(1, "Private key not locked");
+				renderStatus(1, "Private key not encrypted");
 			}
 		} else {
 			renderStatus(1, "Error importing private key");
