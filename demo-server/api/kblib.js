@@ -25,16 +25,15 @@ var makeKeyManagerCallback = function (blob, signature, user, cb) {
 					var blobFromSignature = JSON.parse(decryptedSignature);
 					try {
 						assert.deepEqual(blobFromSignature, blob);
-						var userResponse = {
-							kb_username: user.basics.username,
-							kb_uid: user.id,
-							full_name: user.profile.full_name,
-							location: user.profile.location,
-							token: blob.token
-						};
 						cb(200, {
 							status: {code: 0, name: "OK"},
-							user: userResponse
+							user: {
+								kb_username: user.basics.username,
+								kb_uid: user.id,
+								full_name: user.profile.full_name,
+								location: user.profile.location,
+								token: blob.token
+							}
 						});
 					} catch (Error) {
 						cb(400, "Mismatched blob and signature");

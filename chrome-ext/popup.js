@@ -123,6 +123,14 @@ function decryptKey(pkey_passwd) {
 	});
 }
 
+function generateNonce() {
+	var arr = new Uint32Array(4);
+	crypto.getRandomValues(arr);
+	return $.makeArray(arr).reduce(function(acc, cur) {
+		return acc + cur.toString(16);
+	}, "");
+}
+
 function handleKbLoginData(data) {
 	if (data) {
 		try {
@@ -130,6 +138,8 @@ function handleKbLoginData(data) {
 			blob = JSON.parse(data);
 			if (validateBlob(blob)) {
 				blob.email_or_username = kb_id;
+				blob.kb_login_ext_nonce = generateNonce();
+				blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
 				signAndPostBlob(blob.kb_post_url, JSON.stringify(blob));
 			} else {
 				renderStatus(1, "Server signing blob has incorrect parameters.")
@@ -143,7 +153,7 @@ function handleKbLoginData(data) {
 }
 
 function validateBlob(blob) {
-	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 32;
+	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85;
 }
 
 function signAndPostBlob(url, blobString) {
@@ -266,8 +276,15 @@ function processKbLogin(kb_passwd) {
 					},
 					success: function (data) {
 						if (data.status.name == "OK") {
-							keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
-							saveKeyToStorage();
+							if (data.me &&
+								data.me.private_keys &&
+								data.me.private_keys.primary &&
+								data.me.private_keys.primary.bundle) {
+								keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
+								saveKeyToStorage();
+							} else {
+								renderStatus(1, "No private key found in that Keybase");
+							}
 						} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
 							renderStatus(1, "Invalid login or password");
 						} else {
