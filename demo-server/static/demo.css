@@ -1,0 +1,94 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	outline: none;
+}
+
+body, input, button, span {
+	font-family: "Segoe UI", "Bitstream Vera Sans", "Lucida Grande", Tahoma, sans-serif;
+	font-size: 1.4rem;
+	font-size: 14px;
+}
+
+form {
+	border-top: 1px solid #88aaee;
+	background-color: #f6f6f6;
+	position: fixed;
+	bottom: 0;
+	width: 100%;
+	display: table;
+}
+
+.entry-container {
+	display: table-cell;
+}
+
+#name-container {
+	padding: 6px 3px 6px 12px;
+	width: 150px;
+}
+
+#name:after {
+	content: ':';
+}
+
+#input-container {
+	padding: 6px 3px 6px 6px;
+}
+
+#button-container {
+	width: 120px;
+	padding: 6px 6px 6px 3px;
+}
+
+input, button {
+	padding: 5px;
+	border-radius: 2px;
+	border: 1px solid #88aaee;
+	color: #365FB3;
+	width: 100%;
+}
+
+button {
+	background-color: #bbccff;
+}
+
+input:focus, button:focus {
+	border-width: 2px;
+	padding: 4px;
+}
+
+button:active {
+	background-color: #88aaee;
+	color: #ffffff;
+}
+
+button[disabled] {
+	background-color: #D8E0F2;
+	color: #cccccc;
+}
+
+.hidden {
+	display: none !important;
+}
+
+#messages {
+	list-style-type: none;
+	margin: 0 0 40px 0;
+	padding: 0;
+}
+
+#messages li {
+	padding: 5px 10px;
+	max-width: 100%;
+	overflow-wrap: break-word;
+}
+
+#messages li.error {
+	color: #930300;
+}
+
+#messages li.error:before {
+	content: "Error from server: ";
+}
