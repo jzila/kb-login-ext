@@ -132,36 +132,33 @@ function generateNonce() {
 }
 
 function handleKbLoginData(data) {
-	if (data) {
-		try {
-			renderStatus(-1, "Signing server data...");
-			var blob;
-			if ((blob = parseBlob(data))) {
-				blob.email_or_username = kb_id;
-				blob.kb_login_ext_nonce = generateNonce();
-				blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
-				signAndPostBlob(blob.kb_post_url, JSON.stringify(blob));
-			} else {
-				renderStatus(1, "Server signing blob is invalid.");
-			}
-		} catch (SyntaxError) {
-			renderStatus(1, "Unable to parse JSON from server");
-		}
-	} else {
-		renderStatus(1, "No signing data received from server");
+	renderStatus(-1, "Signing server data...");
+	var blob;
+	if ((blob = parseBlob(data))) {
+		blob.email_or_username = kb_id;
+		blob.kb_login_ext_nonce = generateNonce();
+		blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
+		signAndPostBlob(blob.kb_post_url, JSON.stringify(blob));
 	}
 }
 
 function parseBlob(data) {
-	if (data.length > 300) {
-		return null;
+	if (!data) {
+		renderStatus(1, "No signing data received from server");
+	} else if (data.length > 300) {
+		renderStatus(1, "Server blob too large");
 	}
-	var blob = JSON.parse(data);
-	if (blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85) {
-		return blob;
-	} else {
-		return null;
+	try {
+		var blob = JSON.parse(data);
+		if (blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85) {
+			return blob;
+		} else {
+			renderStatus(1, "Unable to validate server blob");
+		}
+	} catch (SyntaxError) {
+		renderStatus(1, "Unable to parse JSON from server");
 	}
+	return null;
 }
 
 function signAndPostBlob(url, blobString) {

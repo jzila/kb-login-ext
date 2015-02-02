@@ -1,12 +1,13 @@
 var http = require("http"),
 	path = require("path"),
-	app = require('express')(),
+	express = require("express"),
 	bodyParser = require('body-parser'),
 	multer = require('multer'),
 	kblib = require("./api/kblib.js"),
 	util = require("./lib/util.js"),
 	constants = require("./constants.js");
 
+var app = express();
 var port = process.env.PORT;
 
 // In-memory session handling
@@ -38,9 +39,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(multer());
 
-app.get(/^\/?$/, function(req, resp) {
-	resp.sendFile(path.join(__dirname, "static/index.html"));
-});
+app.use(express.static(__dirname + '/static'));
 
 app.get(/^\/api\/get_blob\/?$/, function (req, resp) {
 	var protocol = req.headers.referer.slice(0, req.headers.referer.indexOf("://"));
