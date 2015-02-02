@@ -36,16 +36,16 @@ function renderStatus(statusCode, statusText) {
 	if (statusCode >= 0) {
 		if (keyExists()) {
 			if (keyEncrypted()) {
-				$("#kb-password").addClass("hidden");
+				$("#pkey-container").addClass("hidden");
 				$("#pkey-password").removeClass("hidden");
 				$("#submit").removeClass("hidden");
 			} else {
-				$("#kb-password").addClass("hidden");
+				$("#pkey-container").addClass("hidden");
 				$("#pkey-password").addClass("hidden");
 				$("#submit").addClass("hidden");
 			}
 		} else {
-			$("#kb-password").removeClass("hidden");
+			$("#pkey-container").removeClass("hidden");
 			$("#pkey-password").addClass("hidden");
 			$("#submit").removeClass("hidden");
 		}
@@ -212,12 +212,27 @@ function saveKeyToStorage() {
 	});
 }
 
-function processKbLogin() {
-	renderStatus(-1, "Requesting salt from Keybase...");
-	kb_id = $('#kb-id').val();
+function handleKeySubmit() {
 	var kb_passwd_field = $('#kb-password');
-	var kb_passwd = kb_passwd_field.val();
-	kb_passwd_field.val('');
+	var private_key_field = $('#pkey-local');
+	var kb_id_field = $('#kb-id');
+
+	if (!kb_id_field.val()) {
+		renderStatus(1, "Keybase ID required");
+	} else {
+		kb_id = kb_id_field.val();
+		if (kb_passwd_field.val()) {
+			processKbLogin(kb_passwd_field.val());
+			kb_passwd_field.val("");
+		} else if (private_key_field.val()) {
+			keys.private_key.key_encrypted = private_key_field.val();
+			saveKeyToStorage();
+		}
+	}
+}
+
+function processKbLogin(kb_passwd) {
+	renderStatus(-1, "Requesting salt from Keybase...");
 
 	// TODO Issue #1 sanitize and validate text for both fields
 
@@ -290,9 +305,9 @@ function focusFirstEmpty() {
 	}
 }
 
-$(document).ready(function () {
+$(document).ready(function() {
 	getKeyFromStorage();
-	$('#submit').click(function () {
+	$('#submit').click(function() {
 		$(this).focus();
 		renderStatus(-1);
 		if (keyExists()) {
@@ -300,10 +315,21 @@ $(document).ready(function () {
 			decryptKey(pkey_password_field.val());
 			pkey_password_field.val("");
 		} else {
-			processKbLogin();
+			handleKeySubmit();
 		}
 	});
-	$('#kb-id').on('input', function () {
+	$('#use-private').click(function() {
+		if ($(this).hasClass("local")) {
+			$(this).removeClass("local").addClass("keybase");
+			$("#pkey-local").removeClass("hidden");
+			$("#kb-password").addClass("hidden");
+		} else {
+			$(this).addClass("local").removeClass("keybase");
+			$("#pkey-local").addClass("hidden");
+			$("#kb-password").removeClass("hidden");
+		}
+	});
+	$('#kb-id').on('input', function() {
 		resetForm();
 	});
 	focusFirstEmpty();
