@@ -9,6 +9,7 @@ var login_url = "https://keybase.io/_/api/1.0/login.json";
 var salt_url = "https://keybase.io/_/api/1.0/getsalt.json?email_or_username={0}";
 var crypt = require('crypto');
 var kb_id = '';
+var kb_login_regex = /^[a-zA-Z0-9_]+$/;
 var keys = {
 	private_key: {
 		key_encrypted: null,
@@ -179,9 +180,11 @@ function signAndPostBlob(url, blobString) {
 					renderStatus(0, "Logged in as " + data.user.full_name);
 				},
 				error: function () {
-					renderStatus(1, "Unable to verify identity");
+					resetForm("Unable to verify identity");
 				}
 			});
+		} else {
+			renderStatus(1, "Error signing blob");
 		}
 	});
 }
@@ -194,13 +197,15 @@ function sendUserMessage(user) {
 	});
 }
 
-function resetForm() {
+function resetForm(message) {
 	keys.private_key = {
 		key_b64: null,
 		key_manager: null
 	};
 	kb_id = '';
-	clearKeysFromStorage(function() { renderStatus(1); });
+	clearKeysFromStorage(function() {
+		renderStatus(1, message);
+	});
 }
 
 function clearKeysFromStorage(cb) {
@@ -234,6 +239,8 @@ function handleKeySubmit() {
 
 	if (!kb_id_field.val()) {
 		renderStatus(1, "Keybase ID required");
+	} else if (!kb_id_field.val().match(kb_login_regex)) {
+		renderStatus(1, "Invalid Keybase ID");
 	} else {
 		kb_id = kb_id_field.val();
 		if (kb_passwd_field.val()) {
@@ -252,60 +259,64 @@ function processKbLogin(kb_passwd) {
 	// TODO Issue #1 sanitize and validate text for both fields
 
 	$.getJSON(formatString(salt_url, kb_id), function (salt_data) {
-		renderStatus(-1, "Salting and encrypting passphrase...");
-		var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
-		var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
-		var key = new triplesec.Buffer(kb_passwd, 'utf8');
-		var pwh_derived_key_bytes = 32;
-		var encryptor = new triplesec.Encryptor({
-			key: key,
-			version: 3
-		});
-		encryptor.resalt({
-			salt: salt,
-			extra_keymaterial: pwh_derived_key_bytes
-		}, function (err, km) {
-			if (!err) {
-				renderStatus(-1, "Hashing encrypted passphrase...");
-				var pwh = km.extra.slice(0, pwh_derived_key_bytes);
-				var hmac = crypt.createHmac('sha512', pwh).update(login_session);
-				var digest = hmac.digest('hex');
+		if (salt_data && salt_data.status && salt_data.status.code === 0) {
+			renderStatus(-1, "Salting and encrypting passphrase...");
+			var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
+			var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
+			var key = new triplesec.Buffer(kb_passwd, 'utf8');
+			var pwh_derived_key_bytes = 32;
+			var encryptor = new triplesec.Encryptor({
+				key: key,
+				version: 3
+			});
+			encryptor.resalt({
+				salt: salt,
+				extra_keymaterial: pwh_derived_key_bytes
+			}, function (err, km) {
+				if (!err) {
+					renderStatus(-1, "Hashing encrypted passphrase...");
+					var pwh = km.extra.slice(0, pwh_derived_key_bytes);
+					var hmac = crypt.createHmac('sha512', pwh).update(login_session);
+					var digest = hmac.digest('hex');
 
-				$.ajax({
-					url: login_url,
-					type: "POST",
-					data: {
-						email_or_username: kb_id,
-						hmac_pwh: digest,
-						login_session: salt_data["login_session"]
-					},
-					success: function (data) {
-						if (data.status.name == "OK") {
-							if (data.me &&
-								data.me.private_keys &&
-								data.me.private_keys.primary &&
-								data.me.private_keys.primary.bundle) {
-								keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
-								saveKeyToStorage();
+					$.ajax({
+						url: login_url,
+						type: "POST",
+						data: {
+							email_or_username: kb_id,
+							hmac_pwh: digest,
+							login_session: salt_data["login_session"]
+						},
+						success: function (data) {
+							if (data.status.name == "OK") {
+								if (data.me &&
+									data.me.private_keys &&
+									data.me.private_keys.primary &&
+									data.me.private_keys.primary.bundle) {
+									keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
+									saveKeyToStorage();
+								} else {
+									renderStatus(1, "No private key found in that Keybase");
+								}
+							} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
+								renderStatus(1, "Invalid login or password");
 							} else {
-								renderStatus(1, "No private key found in that Keybase");
+								renderStatus(1, "Unknown error occurred with login");
 							}
-						} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
-							renderStatus(1, "Invalid login or password");
-						} else {
-							renderStatus(1, "Unknown error occurred with login");
+						},
+						error: function (err) {
+							renderStatus(1, "Unable to login to " + login_url);
 						}
-					},
-					error: function (err) {
-						renderStatus(1, "Unable to login to " + login_url);
-					}
-				});
-			} else {
-				renderStatus(1, "Error occurred while encrypting password");
-			}
-		});
+					});
+				} else {
+					renderStatus(1, "Error occurred while encrypting password");
+				}
+			});
+		} else {
+			renderStatus(1, "Failed to get salt; invalid username");
+		}
 	}).fail(function (err) {
-		renderStatus(1, "Failed to get salt");
+		renderStatus(1, "Failed to get salt; invalid username");
 	});
 }
 

@@ -79,6 +79,8 @@ exports.kbCertVerify = function (blob, signature, cb) {
 					{armored: user.public_keys.primary.bundle},
 					makeKeyManagerCallback(blob, signature, user, cb)
 				);
+			} else {
+				cb(400, "Error obtaining matching public key");
 			}
 		});
 	};
