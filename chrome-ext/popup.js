@@ -9,7 +9,7 @@ var login_url = "https://keybase.io/_/api/1.0/login.json";
 var salt_url = "https://keybase.io/_/api/1.0/getsalt.json?email_or_username={0}";
 var crypt = require('crypto');
 var kb_id = '';
-var kb_login_regex = /^[a-zA-Z0-9_]+$/;
+var kb_login_regex = /^[a-zA-Z0-9_@.+-]+$/;
 var keys = {
 	private_key: {
 		key_encrypted: null,
