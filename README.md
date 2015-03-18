@@ -24,7 +24,7 @@ Store](https://chrome.google.com/webstore/detail/keybase-login-extension/gjppgci
 
 
 Once you have the extension installed, you can [try the demo
-app](http://kb-login-ext.lrjn.flynnhub.com/)
+app](http://kb-login-ext.flynn.jzila.com/)
 
 If you are on a compatible website, the extension will appear in your URL bar
 with the following image:
