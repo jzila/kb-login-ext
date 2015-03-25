@@ -6,10 +6,17 @@ body {
 	background-color: #f6f6f6;
 }
 
-body, input, button, textarea {
+body, input, button {
 	font-family: "Segoe UI", "Bitstream Vera Sans", "Lucida Grande", Tahoma, sans-serif;
 	font-size: 1.4rem;
 	font-size: 14px;
+}
+
+textarea {
+	font-family: Consolas, Menlo, Monaco, monospace;
+	font-size: 1.2rem;
+	font-size: 12px;
+	height: 70px;
 }
 
 .title {
@@ -44,15 +51,11 @@ input, button {
 	height: 30px;
 }
 
-textarea {
-	height: 60px;
-}
-
 button {
 	background-color: #bbccff;
 }
 
-input:focus, button:focus {
+input:focus, button:focus, textarea:focus {
 	border: 2px solid #88aaee;
 	padding: 4px;
 }
@@ -96,12 +99,27 @@ button[disabled] {
 	margin: 8px 5px;
 }
 
-.local:after {
-	content: "Use Local Key"
+/*
+ * Template for whether to show local or keybase form
+ */
+.local .kb-password {
+	display: none !important;
 }
 
-.keybase:after {
+.local .kb-id {
+	display: none !important;
+}
+
+.local .use-private:after {
 	content: "Use Keybase Key"
+}
+
+.keybase .pkey-local {
+	display: none !important;
+}
+
+.keybase .use-private:after {
+	content: "Use Local Key"
 }
 
 .hidden {

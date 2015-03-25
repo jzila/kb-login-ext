@@ -7,7 +7,8 @@ var http = require("http"),
 	crypto = require("crypto"),
 	util = require("../lib/util.js");
 
-var pkey_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usernames={0}&fields=basics,profile,public_keys";
+var pkey_username_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usernames={0}&fields=basics,profile,public_keys";
+var pkey_fingerprint_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?key_fingerprint={0}&fields=basics,profile,public_keys";
 
 var validateBlob = function (blob) {
 	// TODO Issue #3 make this actually validate the token we sent
@@ -85,7 +86,12 @@ exports.kbCertVerify = function (blob, signature, cb) {
 		});
 	};
 
-	var lookupUrl = util.formatString(pkey_url, blob.email_or_username);
+	var lookupUrl;
+	if (blob.fingerprint) {
+		lookupUrl = util.formatString(pkey_fingerprint_url, blob.fingerprint);
+	} else {
+		lookupUrl = util.formatString(pkey_username_url, blob.email_or_username);
+	}
 	https.get(lookupUrl, lookupCallback);
 };
 

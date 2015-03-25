@@ -15,11 +15,11 @@
 <div class="overview" id="status">No key</div>
 <form action="#">
 	<div id="form-container">
-		<input type="text" id="kb-id" placeholder="Keybase Username" />
-		<div id="pkey-container">
-			<button id="use-private" class="local" type="button"></button>
-			<input id="kb-password" type="password" placeholder="Keybase Passphrase" />
-			<textarea id="pkey-local" class="hidden" placeholder="Private Key"></textarea>
+		<div id="pkey-container" class="local">
+			<button id="use-private" class="use-private" type="button"></button>
+			<input id="kb-id" class="kb-id" type="text" placeholder="Keybase Username" />
+			<input id="kb-password" class="kb-password" type="password" placeholder="Keybase Passphrase" />
+			<textarea id="pkey-local" class="pkey-local" placeholder="gpg -a --export-secret-keys <key ID>"></textarea>
 		</div>
 		<input type="password" id="pkey-password" class="hidden" placeholder="Private Key Passphrase" />
 

@@ -13,17 +13,39 @@ var kb_login_regex = /^[a-zA-Z0-9_@.+-]+$/;
 var keys = {
 	private_key: {
 		key_encrypted: null,
-		key_manager: null
+		key_manager: null,
+		key_fingerprint: null,
 	}
 };
 
+var KeyManager = kbpgp.KeyManager;
+
+KeyManager.prototype.has_private = function() {
+	return this.has_pgp_private() || this.has_p3skb_private();
+};
+
+KeyManager.prototype.is_locked = function() {
+	return this.is_pgp_locked() || this.is_p3skb_locked();
+};
+
+KeyManager.prototype.unlock = function(params, cb) {
+	if (this.is_pgp_locked()) {
+		return this.unlock_pgp(params, cb);
+	} else if (this.is_p3skb_locked()) {
+		return this.unlock_p3skb(params, cb);
+	} else {
+		cb(true);
+	}
+};
+
+
 function renderStatus(statusCode, statusText) {
 	if (!statusText) {
-		if (keys.private_key.key_encrypted) {
-			if (keys.private_key.key_manager) {
-				statusText = "Private key loaded";
-			} else {
+		if (keyExists()) {
+			if (keyEncrypted()) {
 				statusText = "Private key encrypted";
+			} else {
+				statusText = "Private key loaded";
 			}
 		} else {
 			statusText = "No key";
@@ -68,26 +90,6 @@ function formatString(format) {
 	});
 }
 
-var KeyManager = kbpgp.KeyManager;
-
-KeyManager.prototype.has_private = function() {
-	return this.has_pgp_private() || this.has_p3skb_private();
-};
-
-KeyManager.prototype.is_locked = function() {
-	return this.is_pgp_locked() || this.is_p3skb_locked();
-};
-
-KeyManager.prototype.unlock = function(params, cb) {
-	if (this.is_pgp_locked()) {
-		return this.unlock_pgp(params, cb);
-	} else if (this.is_p3skb_locked()) {
-		return this.unlock_p3skb(params, cb);
-	} else {
-		cb(true);
-	}
-};
-
 function handleKeyUnlock(km, pkey_passwd) {
 	if (!km.has_private()) {
 		renderStatus(1, "No private key supplied");
@@ -104,6 +106,29 @@ function handleKeyUnlock(km, pkey_passwd) {
 	} else {
 		renderStatus(1, "Private key not encrypted");
 	}
+}
+
+function importKey(cb) {
+	var key_encrypted = keys.private_key.key_encrypted;
+	KeyManager.import_from_p3skb({armored: key_encrypted}, function (err, km) {
+		if (!err) {
+			keys.private_key.key_manager = km;
+			if (cb) {
+				cb();
+			}
+		} else {
+			kbpgp.KeyManager.import_from_armored_pgp({armored: key_encrypted}, function(err, kmpgp) {
+				if (!err) {
+					keys.private_key.key_manager = kmpgp;
+					if (cb) {
+						cb();
+					}
+				} else {
+					renderStatus(1, "Error importing private key");
+				}
+			});
+		}
+	});
 }
 
 function decryptKey(pkey_passwd) {
@@ -137,6 +162,7 @@ function handleKbLoginData(data) {
 	var blob;
 	if ((blob = parseBlob(data))) {
 		blob.email_or_username = kb_id;
+		blob.fingerprint = keys.private_key.key_manager.get_pgp_fingerprint().toString('hex');
 		blob.kb_login_ext_nonce = generateNonce();
 		blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
 		signAndPostBlob(blob.kb_post_url, JSON.stringify(blob));
@@ -198,6 +224,14 @@ function sendUserMessage(user) {
 }
 
 function resetForm(message) {
+	$('#kb-id').val('');
+	$('#kb-password').val('');
+	$('#pkey-password').val('');
+	$('#pkey-local').val('');
+	resetData(message);
+}
+
+function resetData(message) {
 	keys.private_key = {
 		key_b64: null,
 		key_manager: null
@@ -214,8 +248,9 @@ function clearKeysFromStorage(cb) {
 
 function getKeyFromStorage() {
 	chrome.storage.local.get(["kb-private-key", "kb-id"], function(objects) {
-		if (objects["kb-private-key"] && objects["kb-id"]) {
+		if (objects["kb-private-key"]) {
 			keys.private_key.key_encrypted = objects["kb-private-key"];
+			importKey();
 			kb_id = objects["kb-id"];
 			$('#kb-id').val(kb_id);
 		}
@@ -236,20 +271,18 @@ function handleKeySubmit() {
 	var kb_passwd_field = $('#kb-password');
 	var private_key_field = $('#pkey-local');
 	var kb_id_field = $('#kb-id');
+	kb_id = kb_id_field.val();
 
-	if (!kb_id_field.val()) {
-		renderStatus(1, "Keybase ID required");
-	} else if (!kb_id_field.val().match(kb_login_regex)) {
+	if (private_key_field.val()) {
+		keys.private_key.key_encrypted = private_key_field.val();
+		importKey(saveKeyToStorage);
+	} else if (!kb_id) {
+		renderStatus(1, "Keybase ID or private key required");
+	} else if (!kb_id.match(kb_login_regex)) {
 		renderStatus(1, "Invalid Keybase ID");
-	} else {
-		kb_id = kb_id_field.val();
-		if (kb_passwd_field.val()) {
-			processKbLogin(kb_passwd_field.val());
-			kb_passwd_field.val("");
-		} else if (private_key_field.val()) {
-			keys.private_key.key_encrypted = private_key_field.val();
-			saveKeyToStorage();
-		}
+	} else if (kb_passwd_field.val()) {
+		processKbLogin(kb_passwd_field.val());
+		kb_passwd_field.val("");
 	}
 }
 
@@ -294,7 +327,7 @@ function processKbLogin(kb_passwd) {
 									data.me.private_keys.primary &&
 									data.me.private_keys.primary.bundle) {
 									keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
-									saveKeyToStorage();
+									importKey(saveKeyToStorage);
 								} else {
 									renderStatus(1, "No private key found in that Keybase");
 								}
@@ -325,7 +358,7 @@ function keyExists() {
 }
 
 function keyEncrypted() {
-	return keyExists() && !keys.private_key.key_manager;
+	return keyExists() && keys.private_key.key_manager && keys.private_key.key_manager.is_locked();
 }
 
 function focusFirstEmpty() {
@@ -345,25 +378,27 @@ $(document).ready(function() {
 		renderStatus(-1);
 		if (keyExists()) {
 			var pkey_password_field = $("#pkey-password");
-			decryptKey(pkey_password_field.val());
-			pkey_password_field.val("");
+			if (pkey_password_field.val()) {
+				decryptKey(pkey_password_field.val());
+				pkey_password_field.val("");
+			} else {
+				resetForm();
+			}
 		} else {
 			handleKeySubmit();
 		}
 	});
 	$('#use-private').click(function() {
-		if ($(this).hasClass("local")) {
-			$(this).removeClass("local").addClass("keybase");
-			$("#pkey-local").removeClass("hidden");
-			$("#kb-password").addClass("hidden");
+		resetForm();
+		var p = $(this).parent();
+		if (p.hasClass("local")) {
+			p.removeClass("local").addClass("keybase");
 		} else {
-			$(this).addClass("local").removeClass("keybase");
-			$("#pkey-local").addClass("hidden");
-			$("#kb-password").removeClass("hidden");
+			p.addClass("local").removeClass("keybase");
 		}
 	});
 	$('#kb-id').on('input', function() {
-		resetForm();
+		resetData();
 	});
 	focusFirstEmpty();
 });
