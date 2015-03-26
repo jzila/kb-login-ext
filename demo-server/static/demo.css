@@ -22,11 +22,13 @@ form {
 
 .entry-container {
 	display: table-cell;
+	width: 1%;
+	white-space: nowrap;
+	vertical-align: middle;
 }
 
 #name-container {
 	padding: 6px 3px 6px 12px;
-	width: 150px;
 }
 
 #name:after {
@@ -35,11 +37,15 @@ form {
 
 #input-container {
 	padding: 6px 3px 6px 6px;
+	width: 99%;
 }
 
 #button-container {
-	width: 120px;
 	padding: 6px 6px 6px 3px;
+}
+
+#button-container button {
+	width: 120px;
 }
 
 input, button {
