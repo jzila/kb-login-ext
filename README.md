@@ -22,12 +22,16 @@ you can provide your key's passphrase to sign the server blob once.
 The Chrome extension is available on the [Google Web
 Store](https://chrome.google.com/webstore/detail/keybase-login-extension/gjppgcifmgbfajbilocagcckghaogfme).
 
+If you don't trust me (you shouldn't, that's what encryption is about!), you
+can also install the chrome extension from source by [following these
+instructions](https://developer.chrome.com/extensions/getstarted#unpacked).
 
 Once you have the extension installed, you can [try the demo
-app](http://kb-login-ext.flynn.jzila.com/)
+app](http://kb-login-ext.flynn.jzila.com/).
 
-If you are on a compatible website, the extension will appear in your URL bar
-with the following image:
+If you are on a compatible website (such as [the demo
+app](http://kb-login-ext.flynn.jzila.com/), the extension will appear in your
+URL bar with the following image:
 ![Hello](https://raw.githubusercontent.com/jzila/kb-login-ext/master/chrome-ext/icon.png)
 
 ## Contributing
