@@ -11,7 +11,6 @@ var pkey_username_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usern
 var pkey_fingerprint_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?key_fingerprint={0}&fields=basics,profile,public_keys";
 
 var validateBlob = function (blob) {
-	// TODO Issue #3 make this actually validate the token we sent
 	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85;
 };
 
@@ -56,16 +55,13 @@ exports.kbCertVerify = function (blob, signature, cb) {
 	}
 
 	var lookupCallback = function (response) {
-		console.log("lookup callback");
 		var body = '';
 
 		response.on('data', function (chunk) {
-			console.log("lookup data");
 			body += chunk;
 		});
 
 		response.on('end', function () {
-			console.log("lookup end");
 			var publicData = JSON.parse(body);
 			if (publicData &&
 				publicData.status &&
