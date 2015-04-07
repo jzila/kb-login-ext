@@ -143,9 +143,11 @@ io.on('connection', function(socket){
 				if (msg.length > 1024) {
 					msg = msg.substr(0, 1010) + "...[truncated]";
 				}
-				var obj = {user: user.kb_username, message: msg};
-				var obj_base64 = new Buffer(JSON.stringify(obj)).toString('base64');
-				redisClient.publish(chatChannel, obj_base64);
+				if (msg.trim().length > 0) {
+					var obj = {user: user.kb_username, message: msg};
+					var obj_base64 = new Buffer(JSON.stringify(obj)).toString('base64');
+					redisClient.publish(chatChannel, obj_base64);
+				}
 			}
 		}
 	}));
