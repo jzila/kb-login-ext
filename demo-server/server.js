@@ -101,7 +101,7 @@ var initRateLimiter = function(id) {
 
 var checkRateLimit = function(id, errHandler) {
 	var limit = limiter[id];
-	if (limit == null || limit == 0) {
+	if (limit == null || limit <= 0) {
 		errHandler("You are doing that too much.");
 		return false;
 	} else {
@@ -114,7 +114,7 @@ var incrRateLimit = function() {
 	var sockets = Object.keys(io.sockets.connected);
 	for (var i=0; i<sockets.length; i++) {
 		var socket = sockets[i];
-		if (limiter[socket] != null && limiter[socket] < 5) {
+		if (limiter[socket] != null && limiter[socket] < maxRateLimit) {
 			limiter[socket] += limitIncr;
 		}
 	}
