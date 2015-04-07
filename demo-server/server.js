@@ -13,8 +13,8 @@ var redis = Promise.promisifyAll(require('node-redis'));
 
 var limiter = {},
 	limitIncr = 1,
-	maxRateLimit = 5,
-	rateLimitIncrInterval = 1000;
+	maxRateLimit = 3,
+	rateLimitIncrInterval = 2000;
 
 var app = express();
 var port = process.env.PORT || 8084;
@@ -122,7 +122,7 @@ var incrRateLimit = function() {
 
 setInterval(incrRateLimit, rateLimitIncrInterval);
 
-// Connection handling
+// Chat handling
 
 io.on('connection', function(socket){
 	console.log('User++: connected: ' + Object.keys(io.sockets.connected).length);
