@@ -11,9 +11,13 @@ var http = require("http"),
 	constants = require("./constants.js");
 var redis = Promise.promisifyAll(require('node-redis'));
 
+var limiter = {},
+	limitIncr = 1,
+	maxRateLimit = 5,
+	rateLimitIncrInterval = 1000;
+
 var app = express();
 var port = process.env.PORT || 8084;
-
 
 // Redis session handling
 var redisHost = process.env.REDIS_HOST || 'localhost';
@@ -90,26 +94,59 @@ app.post(/^\/api\/kb_cert_verify\/?$/, async(function (req, resp) {
 	}
 }));
 
+// Rate limiting
+var initRateLimiter = function(id) {
+	limiter[id] = maxRateLimit;
+};
+
+var checkRateLimit = function(id, errHandler) {
+	var limit = limiter[id];
+	if (limit == null || limit == 0) {
+		errHandler("You are doing that too much.");
+		return false;
+	} else {
+		limiter[id]--;
+	}
+	return true;
+};
+
+var incrRateLimit = function() {
+	var sockets = Object.keys(io.sockets.connected);
+	for (var i=0; i<sockets.length; i++) {
+		var socket = sockets[i];
+		if (limiter[socket] != null && limiter[socket] < 5) {
+			limiter[socket] += limitIncr;
+		}
+	}
+};
+
+setInterval(incrRateLimit, rateLimitIncrInterval);
+
+// Connection handling
+
 io.on('connection', function(socket){
-	console.log('a user connected');
+	console.log('User++: connected: ' + Object.keys(io.sockets.connected).length);
+	initRateLimiter(socket.id);
 	var errHandler = function(err) {
 		socket.emit("chat_error", err);
 	};
 	socket.on('disconnect', function(){
-		console.log('user disconnected');
+		console.log('User--: connected: ' + Object.keys(io.sockets.connected).length);
 	});
 	socket.on("chat_message", async(function(obj) {
-		var user;
-		if (!obj.token || !(user = getSessionUser(obj.token))) {
-			errHandler("Unrecognized user");
-		} else {
-			var msg = obj.message;
-			if (msg.length > 1024) {
-				msg = msg.substr(0, 1010) + "...[truncated]";
+		if (checkRateLimit(socket.id, errHandler)) {
+			var user;
+			if (!obj.token || !(user = getSessionUser(obj.token))) {
+				errHandler("Unrecognized user");
+			} else {
+				var msg = obj.message;
+				if (msg.length > 1024) {
+					msg = msg.substr(0, 1010) + "...[truncated]";
+				}
+				var obj = {user: user.kb_username, message: msg};
+				var obj_base64 = new Buffer(JSON.stringify(obj)).toString('base64');
+				redisClient.publish(chatChannel, obj_base64);
 			}
-			var obj = {user: user.kb_username, message: msg};
-			var obj_base64 = new Buffer(JSON.stringify(obj)).toString('base64');
-			redisClient.publish(chatChannel, obj_base64);
 		}
 	}));
 });
