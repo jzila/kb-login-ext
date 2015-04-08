@@ -44,8 +44,8 @@ var makeKeyManagerCallback = function (blob, signature, user, cb) {
 					var decryptedSignature = literals[0].toString();
 					var blobFromSignature = JSON.parse(decryptedSignature);
                     if (validateSignature(blob, blobFromSignature)) {
-                        var user_name = "Unknown Name";
-                        var location = "Unknown Location";
+                        var user_name = "";
+                        var location = "";
                         if (user['profile']) {
                             var profile = user['profile'];
                             user_name = profile['full_name'] || user_name;

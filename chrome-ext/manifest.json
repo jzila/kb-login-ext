@@ -3,7 +3,7 @@
 
 	"name": "Keybase Login Extension",
 	"description": "This extension allows a user to login to a website that supports Keybase public key login",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"background": {
 		"scripts": ["background.js"],
 		"persistent": true

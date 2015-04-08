@@ -10,7 +10,7 @@ function userChangeHandler() {
 
 	if (Object.getPrototypeOf(this) === HTMLInputElement.prototype && (val = $(this).val())) {
 		user = JSON.parse(val);
-		$("#name").text(user.full_name);
+		$("#name").text(user.full_name || user.kb_uid);
 		$("#name-container").removeClass("hidden");
 		$("#message,#submit").prop("disabled", false);
 	} else {
