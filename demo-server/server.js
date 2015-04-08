@@ -11,15 +11,16 @@ var http = require("http"),
 	constants = require("./constants.js");
 var redis = Promise.promisifyAll(require('node-redis'));
 
-var limiter = {},
-	limitIncr = 1,
+var limitIncr = 1,
 	maxRateLimit = 3,
 	rateLimitIncrInterval = 2000;
 
 var app = express();
 var port = process.env.PORT || 8084;
 
-// Redis session handling
+//
+// Redis setup for sessions and chat pubsub
+//
 var redisHost = process.env.REDIS_HOST || 'localhost';
 var redisClient = redis.createClient(6379, redisHost);
 var redisSubscriber = redis.createClient(6379, redisHost);
@@ -58,6 +59,10 @@ redisSubscriber.on("message", function(channel, message) {
 	}
 });
 
+
+//
+// Routes
+//
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(multer());
@@ -94,7 +99,12 @@ app.post(/^\/api\/kb_cert_verify\/?$/, async(function (req, resp) {
 	}
 }));
 
+
+//
 // Rate limiting
+//
+var limiter = {};
+
 var initRateLimiter = function(id) {
 	limiter[id] = maxRateLimit;
 };
@@ -122,16 +132,51 @@ var incrRateLimit = function() {
 
 setInterval(incrRateLimit, rateLimitIncrInterval);
 
-// Chat handling
 
+//
+// Connection logging
+//
+var serverId = Math.floor(Math.random() * (0xffffffffffff - 0x100000000000) + 0x100000000000).toString(16);
+var serverPrefix = redisPrefix + "servers:";
+
+var clearServerFromRedis = async(function(id) {
+	await(redisClient.delAsync(serverPrefix + id));
+});
+
+var incrementServerConnections = async(function(id) {
+	await(redisClient.incrAsync(serverPrefix + id));
+	connectionLog('User++');
+});
+
+var decrementServerConnections = async(function(id) {
+	await(redisClient.decrAsync(serverPrefix + id));
+	connectionLog('User--');
+});
+
+var connectionLog = async(function(prefix) {
+	var feConnections = Object.keys(io.sockets.connected).length;
+	var serverIds = await(redisClient.keysAsync(serverPrefix + "*"));
+	var serverCounts = await(serverIds.map(function(serverId) {
+		return function(cb) {
+			redisClient.get(serverId, cb);
+		};
+	}));
+	var totalCount = serverCounts.reduce(function(aInt, bStr) { return aInt + parseInt(bStr, 10); }, 0);
+	console.log(prefix + ": server_connected: " + feConnections + ", total_connected: " + totalCount);
+});
+
+
+//
+// Chat handling
+//
 io.on('connection', function(socket){
-	console.log('User++: connected: ' + Object.keys(io.sockets.connected).length);
+	incrementServerConnections(serverId);
 	initRateLimiter(socket.id);
 	var errHandler = function(err) {
 		socket.emit("chat_error", err);
 	};
 	socket.on('disconnect', function(){
-		console.log('User--: connected: ' + Object.keys(io.sockets.connected).length);
+		decrementServerConnections(serverId);
 	});
 	socket.on("chat_message", async(function(obj) {
 		if (checkRateLimit(socket.id, errHandler)) {
@@ -157,3 +202,8 @@ httpServer.listen(port, function() {
 	console.log("listening on " + port);
 });
 
+process.on('SIGINT', async(function() {
+	console.log("shutting down server with ID: " + serverId);
+	await(clearServerFromRedis(serverId));
+	process.exit();
+}));
