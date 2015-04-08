@@ -203,7 +203,7 @@ function signAndPostBlob(url, blobString) {
 				},
 				success: function (data) {
 					sendUserMessage(data.user);
-                    var user_name = data.user.full_name || data.user.kb_uid;
+                    var user_name = data.user.full_name || data.user.kb_username;
 					renderStatus(0, "Logged in as " + user_name);
 				},
 				error: function () {
