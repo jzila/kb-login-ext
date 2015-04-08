@@ -14,6 +14,26 @@ var validateBlob = function (blob) {
 	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85;
 };
 
+var validateSignature = function (blob, blobFromSignature) {
+    var keys = [
+        "siteId",
+        "token",
+        "kb_post_url",
+        "email_or_username",
+        "fingerprint",
+        "kb_login_ext_nonce",
+        "kb_login_ext_annotation"
+    ];
+
+    for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (blob[k] !== blobFromSignature[k]) {
+            return false;
+        }
+    }
+    return true;
+};
+
 var makeKeyManagerCallback = function (blob, signature, user, cb) {
 	return function (err, km) {
 		if (!err && km) {
@@ -23,21 +43,27 @@ var makeKeyManagerCallback = function (blob, signature, user, cb) {
 				if (!err) {
 					var decryptedSignature = literals[0].toString();
 					var blobFromSignature = JSON.parse(decryptedSignature);
-					try {
-						assert.deepEqual(blobFromSignature, blob);
+                    if (validateSignature(blob, blobFromSignature)) {
+                        var user_name = "Unknown Name";
+                        var location = "Unknown Location";
+                        if (user['profile']) {
+                            var profile = user['profile'];
+                            user_name = profile['full_name'] || user_name;
+                            location = profile['location'] || location;
+                        }
 						cb(200, {
 							status: {code: 0, name: "OK"},
 							user: {
-								kb_username: user.basics.username,
-								kb_uid: user.id,
-								full_name: user.profile.full_name,
-								location: user.profile.location,
+								kb_username: user['basics']['username'],
+								kb_uid: user['id'],
+								full_name: user_name,
+								location: location,
 								token: blob.token
 							}
 						});
-					} catch (Error) {
+                    } else {
 						cb(400, "Mismatched blob and signature");
-					}
+                    }
 				} else {
 					cb(400, "Unable to verify signature");
 				}
