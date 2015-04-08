@@ -1,6 +1,6 @@
 ## Synopsis
 
-This chrome extension will support signing a server's blob as an alternate
+This Chrome extension will support signing a server's blob as an alternate
 authentication method to individual server-based username/password login.
 
 You must have a Keybase.io account with a public key hosted in order to 
@@ -17,13 +17,17 @@ The extension will locally store that encrypted private key.
 Once your **encrypted** private key exists in local storage for the extension,
 you can provide your key's passphrase to sign the server blob once.
 
+## Dependencies
+
+Requires [Redis](redis.io) to run the demo server.
+
 ## Demo
 
 The Chrome extension is available on the [Google Web
 Store](https://chrome.google.com/webstore/detail/keybase-login-extension/gjppgcifmgbfajbilocagcckghaogfme).
 
 If you don't trust me (you shouldn't, that's what encryption is about!), you
-can also install the chrome extension from source by [following these
+can also install the Chrome extension from source by [following these
 instructions](https://developer.chrome.com/extensions/getstarted#unpacked).
 
 Once you have the extension installed, you can [try the demo
@@ -33,6 +37,16 @@ If you are on a compatible website (such as [the demo
 app](http://kb-login-ext.flynn.jzila.com/), the extension will appear in your
 URL bar with the following image:
 ![Hello](https://raw.githubusercontent.com/jzila/kb-login-ext/master/chrome-ext/icon.png)
+
+## Building and Running
+
+Once you've cloned the repository and have Redis available on the network, set
+the environment variable `REDIS_HOST` to the hostname of your Redis instance.
+If the environment variable is missing, it will default to `localhost`, but if
+there is no Redis server at `localhost:6379`, it will crash.
+
+Once you've satisfied the dependencies, run `npm start` from the root project
+directory.
 
 ## Contributing
 
