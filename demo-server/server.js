@@ -71,11 +71,9 @@ app.use(express.static(__dirname + '/static'));
 
 app.get(/^\/api\/get_blob\/?$/, function (req, resp) {
 	var protocol = req.headers.referer.slice(0, req.headers.referer.indexOf("://"));
-	var url = protocol + "://" + req.headers.host + constants.API_KB_VERIFY;
 
 	kblib.getBlob(
 		constants.SITE_ID,
-		url,
 		util.makeSendResponse(resp, function(blob) { setSessionUser(blob.token, {}); })
 	);
 });

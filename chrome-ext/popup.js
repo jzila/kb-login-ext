@@ -2,7 +2,12 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 	if (request.kb_blob) {
 		handleKbLoginData(request.kb_blob);
 		sendResponse({ack: true});
-	}
+	} else if (request.user) {
+        var user_name = request.user.full_name || request.user.kb_username;
+        renderStatus(0, "Logged in as " + user_name);
+    } else if (request.error) {
+        resetForm(request.error);
+    }
 });
 
 var login_url = "https://keybase.io/_/api/1.0/login.json";
@@ -165,7 +170,7 @@ function handleKbLoginData(data) {
 		blob.fingerprint = keys.private_key.key_manager.get_pgp_fingerprint().toString('hex');
 		blob.kb_login_ext_nonce = generateNonce();
 		blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
-		signAndPostBlob(blob.kb_post_url, JSON.stringify(blob));
+		signAndSendBlob(JSON.stringify(blob));
 	}
 }
 
@@ -177,7 +182,7 @@ function parseBlob(data) {
 	}
 	try {
 		var blob = JSON.parse(data);
-		if (blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85) {
+		if (blob.siteId && blob.token && blob.token.length >= 85) {
 			return blob;
 		} else {
 			renderStatus(1, "Unable to validate server blob");
@@ -188,38 +193,28 @@ function parseBlob(data) {
 	return null;
 }
 
-function signAndPostBlob(url, blobString) {
+function signAndSendBlob(blobString) {
 	kbpgp.box({
 		msg: blobString,
 		sign_with: keys.private_key.key_manager
 	}, function (err, result_string) {
 		if (!err) {
-			$.ajax({
-				url: url,
-				type: "POST",
-				data: {
-					blob: blobString,
-					signature: result_string
-				},
-				success: function (data) {
-					sendUserMessage(data.user);
-                    var user_name = data.user.full_name || data.user.kb_username;
-					renderStatus(0, "Logged in as " + user_name);
-				},
-				error: function () {
-					resetForm("Unable to verify identity");
-				}
-			});
+            sendSignedBlobMessage({
+                blob: blobString,
+                signature: result_string
+            });
 		} else {
 			renderStatus(1, "Error signing blob");
 		}
 	});
 }
 
-function sendUserMessage(user) {
+function sendSignedBlobMessage(data) {
 	chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-		chrome.tabs.sendMessage(tabs[0].id, user, function(response) {
-			console.log(response.message);
+		chrome.tabs.sendMessage(tabs[0].id, data, function(response) {
+            if (response.message) {
+                console.log(response.message);
+            }
 		});
 	});
 }

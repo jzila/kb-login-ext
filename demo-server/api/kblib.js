@@ -14,14 +14,13 @@ var pkey_username_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?usern
 var pkey_fingerprint_url = "https://keybase.io:443/_/api/1.0/user/lookup.json?key_fingerprint={0}&fields=basics,profile,public_keys";
 
 var validateBlob = function (blob) {
-	return blob.siteId && blob.kb_post_url && blob.token && blob.token.length >= 85;
+	return blob.siteId && blob.token && blob.token.length >= 85;
 };
 
 var validateSignature = function (blob, blobFromSignature) {
     var keys = [
         "siteId",
         "token",
-        "kb_post_url",
         "email_or_username",
         "fingerprint",
         "kb_login_ext_nonce",
@@ -127,12 +126,11 @@ exports.kbCertVerify = function (blob, signature, cb) {
 	https.get(lookupUrl, lookupCallback);
 };
 
-exports.getBlob = function (siteId, verify_url, cb) {
+exports.getBlob = function (siteId, cb) {
 	var random = crypto.randomBytes(64).toString('base64');
 	var blob = {
 		siteId: siteId,
-		token: random,
-		kb_post_url: verify_url
+		token: random
 	};
 	cb(200, blob);
 };
