@@ -22,6 +22,7 @@ var keys = {
 		key_fingerprint: null,
 	}
 };
+var timeout = null;
 
 var KeyManager = kbpgp.KeyManager;
 
@@ -45,6 +46,10 @@ KeyManager.prototype.unlock = function(params, cb) {
 
 
 function renderStatus(statusCode, statusText) {
+    if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+    }
 	if (!statusText) {
 		if (keyExists()) {
 			if (keyEncrypted()) {
@@ -83,6 +88,7 @@ function renderStatus(statusCode, statusText) {
 	} else {
 		$('#submit').prop('disabled', true);
 		$('#button-spinner').attr("class", "");
+        statusText += "...";
 	}
 	$('#status').text(statusText);
 	console.log("status: " + statusText);
@@ -102,7 +108,7 @@ function handleKeyUnlock(km, pkey_passwd) {
 		km.unlock({passphrase: pkey_passwd}, function (err) {
 			if (!err) {
 				keys.private_key.key_manager = km;
-				renderStatus(-1, "Requesting message to sign...");
+				renderStatus(-1, "Requesting message to sign");
 				chrome.tabs.executeScript({file: "content_signing_data.js"});
 			} else {
 				renderStatus(1, "Error decrypting private key");
@@ -137,7 +143,7 @@ function importKey(cb) {
 }
 
 function decryptKey(pkey_passwd) {
-	renderStatus(-1, "Decrypting private key...");
+	renderStatus(-1, "Decrypting private key");
 	var key_encrypted = keys.private_key.key_encrypted;
 	KeyManager.import_from_p3skb({armored: key_encrypted}, function (err, km) {
 		if (!err) {
@@ -163,7 +169,7 @@ function generateNonce() {
 }
 
 function handleKbLoginData(data) {
-	renderStatus(-1, "Signing server data...");
+	renderStatus(-1, "Signing server data");
 	var blob;
 	if ((blob = parseBlob(data))) {
 		blob.email_or_username = kb_id;
@@ -199,6 +205,7 @@ function signAndSendBlob(blobString) {
 		sign_with: keys.private_key.key_manager
 	}, function (err, result_string) {
 		if (!err) {
+            renderStatus(-1, "Sending signature to website");
             sendSignedBlobMessage({
                 blob: blobString,
                 signature: result_string
@@ -213,7 +220,11 @@ function sendSignedBlobMessage(data) {
 	chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
 		chrome.tabs.sendMessage(tabs[0].id, data, function(response) {
             if (response.message) {
+                renderStatus(-1, "Validating signature");
                 console.log(response.message);
+                timeout = setTimeout(function() {
+                    renderStatus(1, "Timed out while validating signature");
+                }, 10000);
             }
 		});
 	});
@@ -283,13 +294,13 @@ function handleKeySubmit() {
 }
 
 function processKbLogin(kb_passwd) {
-	renderStatus(-1, "Requesting salt from Keybase...");
+	renderStatus(-1, "Requesting salt from Keybase");
 
 	// TODO Issue #1 sanitize and validate text for both fields
 
 	$.getJSON(formatString(salt_url, kb_id), function (salt_data) {
 		if (salt_data && salt_data.status && salt_data.status.code === 0) {
-			renderStatus(-1, "Salting and encrypting passphrase...");
+			renderStatus(-1, "Salting and encrypting passphrase");
 			var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
 			var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
 			var key = new triplesec.Buffer(kb_passwd, 'utf8');
@@ -303,7 +314,7 @@ function processKbLogin(kb_passwd) {
 				extra_keymaterial: pwh_derived_key_bytes
 			}, function (err, km) {
 				if (!err) {
-					renderStatus(-1, "Hashing encrypted passphrase...");
+					renderStatus(-1, "Hashing encrypted passphrase");
 					var pwh = km.extra.slice(0, pwh_derived_key_bytes);
 					var hmac = crypt.createHmac('sha512', pwh).update(login_session);
 					var digest = hmac.digest('hex');
