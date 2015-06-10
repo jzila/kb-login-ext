@@ -6,8 +6,7 @@ var http = require("http"),
 	async = require('asyncawait/async'),
 	await = require('asyncawait/await'),
 	Promise = require('bluebird'),
-	kblib = require("./api/kblib.js"),
-	util = require("./lib/util.js"),
+	kblib = require("kb-signin"),
 	constants = require("./constants.js");
 var redis = Promise.promisifyAll(require('node-redis'));
 
@@ -72,29 +71,38 @@ app.use(express.static(__dirname + '/static'));
 app.get(/^\/api\/get_blob\/?$/, function (req, resp) {
 	var protocol = req.headers.referer.slice(0, req.headers.referer.indexOf("://"));
 
-	kblib.getBlob(
-		constants.SITE_ID,
-		util.makeSendResponse(resp, function(blob) { setSessionUser(blob.token, {}); })
-	);
+    var kbSignin = new kblib.KeybaseSignin({
+        Response: {
+            ResponseObject: resp,
+            SuccessCallback: function(blob) { setSessionUser(blob.token, {}); }
+        }
+    });
+    kbSignin.generateBlob(constants.SITE_ID);
 });
 
 app.post(/^\/api\/kb_cert_verify\/?$/, async(function (req, resp) {
-	var errResponseCb = util.makeSendResponse(resp);
-	if (!req.body.blob || !req.body.signature) {
-		console.log("Signature data not valid");
-		return errResponseCb(400, "Invalid signature data");
-	}
-	var signature = req.body.signature;
-	var blob = JSON.parse(req.body.blob);
-	if (blob.token && getSessionUser(blob.token)) {
-		kblib.kbCertVerify(
-			blob,
-			signature,
-			util.makeSendResponse(resp, function(obj) { setSessionUser(obj.user.token, obj.user); })
-		);
-	} else {
-		errResponseCb(400, "Unknown blob identifier");
-	}
+    var errorResponse = function(errStr) {
+        console.err(errStr);
+        resp.status(400).send(errStr);
+    };
+    var kbSignin = new kblib.KeybaseSignin({
+        Response: {
+            ResponseObject: resp,
+            SuccessCallback: function(blob) { setSessionUser(blob.user.token, blob.user); },
+            ErrorCallback: function(errStr) { console.err(errStr); }
+        }
+    });
+    try {
+        var blob = JSON.parse(req.body.blob);
+        var signature = req.body.signature;
+
+        if (!blob.token || !getSessionUser(blob.token)) {
+            return errorResponse("Unknown blob identifier");
+        }
+        kbSignin.lookupKeybase(blob, signature);
+    } catch (ex) {
+        return errorResponse("Error parsing blob JSON");
+    }
 }));
 
 

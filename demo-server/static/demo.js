@@ -19,7 +19,7 @@ function userUpdateHandler(u) {
 	}
 }
 
-function signatureChangeHandler(evt) {
+function signatureChangeHandler() {
 	var val;
 
 	if (Object.getPrototypeOf(this) === HTMLInputElement.prototype && (val = $(this).val())) {
