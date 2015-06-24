@@ -10,17 +10,15 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     }
 });
 
-var login_url = "https://keybase.io/_/api/1.0/login.json";
-var salt_url = "https://keybase.io/_/api/1.0/getsalt.json?email_or_username={0}";
+var F = kbpgp.const.openpgp;
 var crypt = require('crypto');
-var kb_id = '';
-var kb_login_regex = /^[a-zA-Z0-9_@.+-]+$/;
 var keys = {
-	private_key: {
-		key_encrypted: null,
-		key_manager: null,
-		key_fingerprint: null,
-	}
+    key_pair: {
+        fingerprint: null,
+        key_manager: null,
+        signed_public_key: null,
+        private_key: null
+    }
 };
 var timeout = null;
 
@@ -52,41 +50,33 @@ function renderStatus(statusCode, statusText) {
     }
 	if (!statusText) {
 		if (keyExists()) {
-			if (keyEncrypted()) {
-				statusText = "Private key encrypted";
-			} else {
-				statusText = "Private key loaded";
-			}
+            statusText = "Private key loaded";
 		} else {
 			statusText = "No key";
 		}
 	}
 	if (statusCode === 0) {
-		$('#kb-id').addClass('signed-in');
+		$('#status').addClass('signed-in');
 	} else {
-		$('#kb-id').removeClass('signed-in');
+		$('#status').removeClass('signed-in');
 	}
 	if (statusCode >= 0) {
 		if (keyExists()) {
-			if (keyEncrypted()) {
-				$("#pkey-container").addClass("hidden");
-				$("#pkey-password").removeClass("hidden");
-				$("#submit").removeClass("hidden");
-			} else {
-				$("#pkey-container").addClass("hidden");
-				$("#pkey-password").addClass("hidden");
-				$("#submit").addClass("hidden");
-			}
+            $("#pkey-container").addClass('hidden');
+            $("#reset").removeClass("hidden");
+			$("#submit").addClass("hidden");
 		} else {
-			$("#pkey-container").removeClass("hidden");
-			$("#pkey-password").addClass("hidden");
+            $("#pkey-container").removeClass('hidden');
+            $("#reset").addClass("hidden");
 			$("#submit").removeClass("hidden");
 		}
 		$('#submit').prop('disabled', false);
 		$('#button-spinner').attr("class", "hidden");
 		focusFirstEmpty();
 	} else {
-		$('#submit').prop('disabled', true);
+        $("#pkey-container").addClass('hidden');
+        $("#reset").addClass("hidden");
+		$('#submit').removeClass("hidden").prop('disabled', true);
 		$('#button-spinner').attr("class", "");
         statusText += "...";
 	}
@@ -107,9 +97,7 @@ function handleKeyUnlock(km, pkey_passwd) {
 	} else if (km.is_locked()) {
 		km.unlock({passphrase: pkey_passwd}, function (err) {
 			if (!err) {
-				keys.private_key.key_manager = km;
-				renderStatus(-1, "Requesting message to sign");
-				chrome.tabs.executeScript({file: "content_signing_data.js"});
+                generateKeyPair(km);
 			} else {
 				renderStatus(1, "Error decrypting private key");
 			}
@@ -119,45 +107,35 @@ function handleKeyUnlock(km, pkey_passwd) {
 	}
 }
 
-function importKey(cb) {
-	var key_encrypted = keys.private_key.key_encrypted;
-	KeyManager.import_from_p3skb({armored: key_encrypted}, function (err, km) {
-		if (!err) {
-			keys.private_key.key_manager = km;
-			if (cb) {
-				cb();
-			}
-		} else {
-			kbpgp.KeyManager.import_from_armored_pgp({armored: key_encrypted}, function(err, kmpgp) {
-				if (!err) {
-					keys.private_key.key_manager = kmpgp;
-					if (cb) {
-						cb();
-					}
-				} else {
-					renderStatus(1, "Error importing private key");
-				}
-			});
-		}
-	});
+function requestBlobToSign() {
+    renderStatus(-1, "Requesting message to sign");
+    chrome.tabs.executeScript({file: "content_signing_data.js"});
 }
 
-function decryptKey(pkey_passwd) {
+function importKey(cb) {
+    renderStatus(-1, "Importing key");
+    KeyManager.import_from_armored_pgp({armored: keys.key_pair.private_key}, function(err, km) {
+        if (!err) {
+            keys.key_pair.key_manager = km;
+            if (cb) {
+                cb();
+            }
+        } else {
+            resetData();
+            renderStatus(1, "Session key expired");
+        }
+    });
+}
+
+function decryptKey(key_encrypted, pkey_passwd) {
 	renderStatus(-1, "Decrypting private key");
-	var key_encrypted = keys.private_key.key_encrypted;
-	KeyManager.import_from_p3skb({armored: key_encrypted}, function (err, km) {
-		if (!err) {
-			handleKeyUnlock(km, pkey_passwd);
-		} else {
-			kbpgp.KeyManager.import_from_armored_pgp({armored: key_encrypted}, function(err, km) {
-				if (!err) {
-					handleKeyUnlock(km, pkey_passwd);
-				} else {
-					renderStatus(1, "Error importing private key");
-				}
-			});
-		}
-	});
+    KeyManager.import_from_armored_pgp({armored: key_encrypted}, function(err, km) {
+        if (!err) {
+            handleKeyUnlock(km, pkey_passwd);
+        } else {
+            renderStatus(1, "Error decrypting private key");
+        }
+    });
 }
 
 function generateNonce() {
@@ -172,10 +150,10 @@ function handleKbLoginData(data) {
 	renderStatus(-1, "Signing server data");
 	var blob;
 	if ((blob = parseBlob(data))) {
-		blob.email_or_username = kb_id;
-		blob.fingerprint = keys.private_key.key_manager.get_pgp_fingerprint().toString('hex');
+		blob.fingerprint = keys.key_pair.fingerprint;
 		blob.kb_login_ext_nonce = generateNonce();
 		blob.kb_login_ext_annotation = "Auto-signed by kb_login_ext (https://github.com/jzila/kb-login-ext/)";
+        blob.signed_public_key = keys.key_pair.signed_public_key;
 		signAndSendBlob(JSON.stringify(blob));
 	}
 }
@@ -202,7 +180,7 @@ function parseBlob(data) {
 function signAndSendBlob(blobString) {
 	kbpgp.box({
 		msg: blobString,
-		sign_with: keys.private_key.key_manager
+		sign_with: keys.key_pair.key_manager
 	}, function (err, result_string) {
 		if (!err) {
             renderStatus(-1, "Sending signature to website");
@@ -231,180 +209,153 @@ function sendSignedBlobMessage(data) {
 }
 
 function resetForm(message) {
-	$('#kb-id').val('');
-	$('#kb-password').val('');
 	$('#pkey-password').val('');
 	$('#pkey-local').val('');
 	resetData(message);
 }
 
 function resetData(message) {
-	keys.private_key = {
-		key_b64: null,
-		key_manager: null
-	};
-	kb_id = '';
+    keys = {
+        key_pair: {
+            key_manager: null,
+            signed_public_key: null,
+            fingerprint: null,
+            private_key: null,
+        }
+    };
 	clearKeysFromStorage(function() {
 		renderStatus(1, message);
 	});
 }
 
 function clearKeysFromStorage(cb) {
-	chrome.storage.local.remove(["kb-private-key", "kb-id"], cb);
+	chrome.storage.local.clear(cb);
 }
 
 function getKeyFromStorage() {
-	chrome.storage.local.get(["kb-private-key", "kb-id"], function(objects) {
-		if (objects["kb-private-key"]) {
-			keys.private_key.key_encrypted = objects["kb-private-key"];
-			importKey();
-			kb_id = objects["kb-id"];
-			$('#kb-id').val(kb_id);
-		}
-		renderStatus(1);
+	chrome.storage.local.get(["private-key", "signed-public-key", "key-fingerprint"], function(objects) {
+		if (objects["private-key"]) {
+            keys.key_pair.private_key = objects["private-key"];
+            keys.key_pair.signed_public_key = objects["signed-public-key"];
+            keys.key_pair.fingerprint = objects["key-fingerprint"];
+			importKey(requestBlobToSign);
+		} else {
+            renderStatus(1);
+        }
 	});
 }
 
 function saveKeyToStorage() {
 	chrome.storage.local.set({
-		"kb-private-key": keys.private_key.key_encrypted,
-		"kb-id": kb_id
+        "private-key": keys.key_pair.private_key,
+        "signed-public-key": keys.key_pair.signed_public_key,
+        "key-fingerprint": keys.key_pair.fingerprint
 	}, function() {
 		renderStatus(1);
 	});
 }
 
-function handleKeySubmit() {
-	var kb_passwd_field = $('#kb-password');
-	var private_key_field = $('#pkey-local');
-	var kb_id_field = $('#kb-id');
-	kb_id = kb_id_field.val();
-
-	if (private_key_field.val()) {
-		keys.private_key.key_encrypted = private_key_field.val();
-		importKey(saveKeyToStorage);
-	} else if (!kb_id) {
-		renderStatus(1, "Keybase ID or private key required");
-	} else if (!kb_id.match(kb_login_regex)) {
-		renderStatus(1, "Invalid Keybase ID");
-	} else if (kb_passwd_field.val()) {
-		processKbLogin(kb_passwd_field.val());
-		kb_passwd_field.val("");
-	}
+function generateKeyPair(user_km) {
+    renderStatus(-1, "Retrieving PGP fingerprint");
+    if (user_km && user_km.get_pgp_fingerprint()) {
+        keys.key_pair.fingerprint = user_km.get_pgp_fingerprint().toString('hex');
+    } else {
+        return renderStatus(1, "Could not retrieve key fingerprint");
+    }
+    var opts = {
+        userid: "Keybase Login Extension",
+        ecc: true,
+        primary: {
+            flags: F.certify_keys,
+            nbits: 384,
+            expire_in: 60 * 15
+        },
+        subkeys: [
+            {
+                flags : F.sign_data | F.auth,
+                nbits : 256,
+                expire_in: 60 * 15
+            }
+        ]
+    };
+    renderStatus(-1, "Generating session key pair");
+    KeyManager.generate(opts, function(err, km) {
+        if (!err) {
+            renderStatus(-1, "Self-signing key pair");
+            km.sign({}, function(err) {
+                if (!err) {
+                    keys.key_pair.key_manager = km;
+                    renderStatus(-1, "Exporting private key");
+                    km.export_pgp_private({}, function(err, pgp_private) {
+                        if (!err) {
+                            keys.key_pair.private_key = pgp_private;
+                            renderStatus(-1, "Exporting public key");
+                            km.export_pgp_public({}, function(err, pgp_public) {
+                                if (!err && user_km && !user_km.is_locked()) {
+                                    renderStatus(-1, "Signing public key with user key");
+                                    kbpgp.box({
+                                        msg: pgp_public,
+                                        sign_with: user_km
+                                    }, function(err, result_string) {
+                                        if (!err) {
+                                            keys.key_pair.signed_public_key = result_string;
+                                            saveKeyToStorage();
+                                            requestBlobToSign();
+                                        } else {
+                                            renderStatus(1, "Unable to sign key pair");
+                                        }
+                                    });
+                                } else {
+                                    renderStatus(1, "Unable to export public key");
+                                }
+                            });
+                        } else {
+                            renderStatus(1, "Unable to export private key. Error: " + err);
+                        }
+                    });
+                } else {
+                    renderStatus(1, "Unable to self-sign key. Error: " + err);
+                }
+            });
+        } else {
+            renderStatus(1, "Unable to generate key pair");
+        }
+    });
 }
 
-function processKbLogin(kb_passwd) {
-	renderStatus(-1, "Requesting salt from Keybase");
-
-	// TODO Issue #1 sanitize and validate text for both fields
-
-	$.getJSON(formatString(salt_url, kb_id), function (salt_data) {
-		if (salt_data && salt_data.status && salt_data.status.code === 0) {
-			renderStatus(-1, "Salting and encrypting passphrase");
-			var salt = new triplesec.Buffer(salt_data["salt"], 'hex');
-			var login_session = new triplesec.Buffer(salt_data["login_session"], 'base64');
-			var key = new triplesec.Buffer(kb_passwd, 'utf8');
-			var pwh_derived_key_bytes = 32;
-			var encryptor = new triplesec.Encryptor({
-				key: key,
-				version: 3
-			});
-			encryptor.resalt({
-				salt: salt,
-				extra_keymaterial: pwh_derived_key_bytes
-			}, function (err, km) {
-				if (!err) {
-					renderStatus(-1, "Hashing encrypted passphrase");
-					var pwh = km.extra.slice(0, pwh_derived_key_bytes);
-					var hmac = crypt.createHmac('sha512', pwh).update(login_session);
-					var digest = hmac.digest('hex');
-
-					$.ajax({
-						url: login_url,
-						type: "POST",
-						data: {
-							email_or_username: kb_id,
-							hmac_pwh: digest,
-							login_session: salt_data["login_session"]
-						},
-						success: function (data) {
-							if (data.status.name == "OK") {
-								if (data.me &&
-									data.me.private_keys &&
-									data.me.private_keys.primary &&
-									data.me.private_keys.primary.bundle) {
-									keys.private_key.key_encrypted = data.me.private_keys.primary.bundle;
-									importKey(saveKeyToStorage);
-								} else {
-									renderStatus(1, "No private key found in that Keybase");
-								}
-							} else if (data.status.name == "BAD_LOGIN_PASSWORD") {
-								renderStatus(1, "Invalid login or password");
-							} else {
-								renderStatus(1, "Unknown error occurred with login");
-							}
-						},
-						error: function (err) {
-							renderStatus(1, "Unable to login to " + login_url);
-						}
-					});
-				} else {
-					renderStatus(1, "Error occurred while encrypting password");
-				}
-			});
-		} else {
-			renderStatus(1, "Failed to get salt; invalid username");
-		}
-	}).fail(function (err) {
-		renderStatus(1, "Failed to get salt; invalid username");
-	});
+function handleKeySubmit() {
+    $("#submit").focus();
+    renderStatus(-1);
+    var private_key_field = $('#pkey-local');
+    var pkey_password_field = $("#pkey-password");
+    if (private_key_field.val() && pkey_password_field.val()) {
+        decryptKey(private_key_field.val(), pkey_password_field.val());
+        pkey_password_field.val("");
+    } else {
+        resetForm();
+        renderStatus(1, "Private key and passphrase required");
+    }
 }
 
 function keyExists() {
-	return !!keys.private_key.key_encrypted;
-}
-
-function keyEncrypted() {
-	return keyExists() && keys.private_key.key_manager && keys.private_key.key_manager.is_locked();
+	return !!keys.key_pair.key_manager;
 }
 
 function focusFirstEmpty() {
-	if (keyExists()) {
-		$("#pkey-password").focus();
-	} else if (kb_id) {
-		$("#kb-password").focus();
-	} else {
-		$("#kb-id").focus();
+	if (!keyExists()) {
+		$("#pkey-local").focus();
 	}
 }
 
 $(document).ready(function() {
 	getKeyFromStorage();
 	$('#submit').click(function() {
-		$(this).focus();
-		renderStatus(-1);
-		if (keyExists()) {
-			var pkey_password_field = $("#pkey-password");
-			if (pkey_password_field.val()) {
-				decryptKey(pkey_password_field.val());
-				pkey_password_field.val("");
-			} else {
-				resetForm();
-			}
-		} else {
-			handleKeySubmit();
-		}
+        handleKeySubmit();
 	});
-	$('#use-private').click(function() {
-		resetForm();
-		var p = $(this).parent();
-		if (p.hasClass("local")) {
-			p.removeClass("local").addClass("keybase");
-		} else {
-			p.addClass("local").removeClass("keybase");
-		}
-	});
-	$('#kb-id').on('input', function() {
+    $('#reset').click(function() {
+        resetForm();
+    });
+	$('#pkey-local').on('input', function() {
 		resetData();
 	});
 	focusFirstEmpty();

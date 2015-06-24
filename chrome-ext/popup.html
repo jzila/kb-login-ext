@@ -15,18 +15,19 @@
 <div class="overview" id="status">No key</div>
 <form action="#">
 	<div id="form-container">
-		<div id="pkey-container" class="local">
-			<button id="use-private" class="use-private" type="button"></button>
-			<input id="kb-id" class="kb-id" type="text" placeholder="Keybase Username" />
-			<input id="kb-password" class="kb-password" type="password" placeholder="Keybase Passphrase" />
+        <div id="pkey-container">
 			<textarea id="pkey-local" class="pkey-local" placeholder="gpg -a --export-secret-keys <key ID>"></textarea>
+            <input type="password" id="pkey-password" placeholder="Private Key Passphrase" />
 		</div>
-		<input type="password" id="pkey-password" class="hidden" placeholder="Private Key Passphrase [submit empty to reset]" />
 
 		<div id="button-container">
 			<button id="submit" type="submit">Submit</button>
             <img id="button-spinner" src="spinner.svg" />
 		</div>
+
+        <div>
+            <button id="reset" class="hidden" type="button">Reset</button>
+        </div>
 		<div class="clear"></div>
 	</div>
 </form>

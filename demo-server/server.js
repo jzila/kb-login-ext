@@ -82,14 +82,14 @@ app.get(/^\/api\/get_blob\/?$/, function (req, resp) {
 
 app.post(/^\/api\/kb_cert_verify\/?$/, async(function (req, resp) {
     var errorResponse = function(errStr) {
-        console.err(errStr);
+        console.error(errStr);
         resp.status(400).send(errStr);
     };
     var kbSignin = new kblib.KeybaseSignin({
         Response: {
             ResponseObject: resp,
             SuccessCallback: function(blob) { setSessionUser(blob.user.token, blob.user); },
-            ErrorCallback: function(errStr) { console.err(errStr); }
+            ErrorCallback: function(errStr) { console.error(errStr); }
         }
     });
     try {
@@ -117,7 +117,7 @@ var initRateLimiter = function(id) {
 
 var checkRateLimit = function(id, errHandler) {
 	var limit = limiter[id];
-	if (limit == null || limit <= 0) {
+	if (limit === null || limit <= 0) {
 		errHandler("You are doing that too much.");
 		return false;
 	} else {
@@ -130,7 +130,7 @@ var incrRateLimit = function() {
 	var sockets = Object.keys(io.sockets.connected);
 	for (var i=0; i<sockets.length; i++) {
 		var socket = sockets[i];
-		if (limiter[socket] != null && limiter[socket] < maxRateLimit) {
+		if (limiter[socket] !== null && limiter[socket] < maxRateLimit) {
 			limiter[socket] += limitIncr;
 		}
 	}
@@ -195,9 +195,9 @@ io.on('connection', function(socket){
 					msg = msg.substr(0, 1010) + "...[truncated]";
 				}
 				if (msg.trim().length > 0) {
-					var obj = {user: user.kb_username, message: msg};
-					var obj_base64 = new Buffer(JSON.stringify(obj)).toString('base64');
-					redisClient.publish(chatChannel, obj_base64);
+					var message_obj = {user: user.kb_username, message: msg};
+					var message_base64 = new Buffer(JSON.stringify(message_obj)).toString('base64');
+					redisClient.publish(chatChannel, message_base64);
 				}
 			}
 		}
