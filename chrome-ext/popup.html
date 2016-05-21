@@ -1,35 +1,35 @@
 <!doctype html>
 <html>
 <head>
-	<title>Keybase Login Extension</title>
-	<link href="popup.css" rel="stylesheet"/>
+    <title>Keybase Login Extension</title>
+    <link href="popup.css" rel="stylesheet"/>
 
-	<script src="lib/jquery-2.1.3.min.js"></script>
-	<script src="lib/triplesec.js"></script>
-	<script src="lib/kbpgp.js"></script>
-	<script src="lib/bundle.js"></script>
-	<script src="popup.js"></script>
+    <script src="lib/jquery-2.1.3.min.js"></script>
+    <script src="lib/triplesec.js"></script>
+    <script src="lib/kbpgp.js"></script>
+    <script src="lib/bundle.js"></script>
+    <script src="popup.js"></script>
 </head>
 <body>
 <div class="overview title">Sign with Keybase</div>
 <div class="overview" id="status">No key</div>
 <form action="#">
-	<div id="form-container">
+    <div id="form-container">
         <div id="pkey-container">
-			<textarea id="pkey-local" class="pkey-local" placeholder="gpg -a --export-secret-keys <key ID>"></textarea>
+            <textarea id="pkey-local" class="pkey-local" placeholder="gpg -a --export-secret-keys <key ID>"></textarea>
             <input type="password" id="pkey-password" placeholder="Private Key Passphrase" />
-		</div>
+        </div>
 
-		<div id="button-container">
-			<button id="submit" type="submit">Submit</button>
+        <div id="button-container">
+            <button id="submit" type="submit">Submit</button>
             <img id="button-spinner" src="spinner.svg" />
-		</div>
+        </div>
 
         <div>
             <button id="reset" class="hidden" type="button">Reset</button>
         </div>
-		<div class="clear"></div>
-	</div>
+        <div class="clear"></div>
+    </div>
 </form>
 </body>
 </html>
