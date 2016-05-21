@@ -1,0 +1,14 @@
+version: '2'
+services:
+    redis.local:
+        build: ./redis
+        restart: unless-stopped
+    kb-login-demo.local:
+        build: .
+        links:
+            - redis.local
+        environment:
+            - REDIS_HOST=redis.local
+        ports:
+            - "8084:8084"
+

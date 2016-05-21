@@ -19,7 +19,7 @@ you can provide your key's passphrase to sign the server blob once.
 
 ## Dependencies
 
-Requires [Redis](redis.io) to run the demo server.
+Requires [Docker with Docker Compose](https://docs.docker.com/compose/install/).
 
 ## Demo
 
@@ -40,13 +40,9 @@ URL bar with the following image:
 
 ## Building and Running
 
-Once you've cloned the repository and have Redis available on the network, set
-the environment variable `REDIS_HOST` to the hostname of your Redis instance.
-If the environment variable is missing, it will default to `localhost`, but if
-there is no Redis server at `localhost:6379`, it will crash.
-
-Once you've satisfied the dependencies, run `npm start` from the root project
-directory.
+```
+docker-compose up -d
+```
 
 ## Contributing
 
